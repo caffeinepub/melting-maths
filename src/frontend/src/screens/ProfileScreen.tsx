@@ -9,9 +9,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Progress } from "@/components/ui/progress";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { PlayerProfile } from "../backend.d";
 import { NeonButton } from "../components/NeonButton";
@@ -21,6 +20,7 @@ interface ProfileScreenProps {
   profile: PlayerProfile;
   onProfileUpdate: (p: PlayerProfile) => void;
   onBack: () => void;
+  onTeacherView?: () => void;
 }
 
 const ALL_BADGES: Array<{
@@ -74,12 +74,6 @@ const ALL_BADGES: Array<{
     desc: "Score 100% on any game",
   },
   {
-    id: "speed_demon_v2",
-    icon: "⚡",
-    label: "Speed Pro",
-    desc: "Finish Level 3 under 30s",
-  },
-  {
     id: "fraction_master",
     icon: "🍕",
     label: "Fraction Master",
@@ -98,20 +92,185 @@ const ALL_BADGES: Array<{
     id: "all_games",
     icon: "🌍",
     label: "All Games",
-    desc: "Play all 15 games",
+    desc: "Play all 36 games",
+  },
+  {
+    id: "grade_up",
+    icon: "🎓",
+    label: "Grade Up",
+    desc: "First grade promotion",
+  },
+  {
+    id: "quiz_master",
+    icon: "🧪",
+    label: "Quiz Master",
+    desc: "Perfect Shinchen daily quiz (5/5)",
+  },
+  {
+    id: "theme_collector",
+    icon: "🎨",
+    label: "Theme Collector",
+    desc: "Unlock all themes (XP ≥ 1500)",
+  },
+  {
+    id: "boss_slayer",
+    icon: "👑",
+    label: "Boss Slayer",
+    desc: "Beat any boss game",
+  },
+  {
+    id: "week_warrior",
+    icon: "🗡️",
+    label: "Week Warrior",
+    desc: "Play 7 different days",
+  },
+  {
+    id: "challenge_accepted",
+    icon: "🤝",
+    label: "Challenger",
+    desc: "Share a friend challenge",
+  },
+  {
+    id: "drill_sergeant",
+    icon: "💪",
+    label: "Drill Sergeant",
+    desc: "Complete 3 Shinchen drills",
+  },
+  {
+    id: "explorer",
+    icon: "🌐",
+    label: "Explorer",
+    desc: "Play a game 2 grades above yours",
   },
 ];
+
+const AVATARS = [
+  { id: "brain", icon: "🧠", label: "Brain", xpRequired: 0 },
+  { id: "rocket", icon: "🚀", label: "Rocket", xpRequired: 200 },
+  { id: "wizard", icon: "🧙", label: "Wizard", xpRequired: 1000 },
+];
+
+const THEMES = [
+  {
+    id: "neon-blue",
+    label: "Neon Blue",
+    color: "oklch(0.78 0.2 195)",
+    xpRequired: 0,
+  },
+  {
+    id: "cosmic-purple",
+    label: "Cosmic Purple",
+    color: "oklch(0.72 0.28 310)",
+    xpRequired: 500,
+  },
+  {
+    id: "solar-gold",
+    label: "Solar Gold",
+    color: "oklch(0.82 0.18 70)",
+    xpRequired: 1500,
+  },
+];
+
+function getAvatar(): string {
+  try {
+    return localStorage.getItem("mm_avatar") ?? "brain";
+  } catch {
+    return "brain";
+  }
+}
+function setAvatarStorage(id: string) {
+  try {
+    localStorage.setItem("mm_avatar", id);
+  } catch {
+    /* noop */
+  }
+}
+function getTheme(): string {
+  try {
+    return localStorage.getItem("mm_theme") ?? "neon-blue";
+  } catch {
+    return "neon-blue";
+  }
+}
+function setThemeStorage(id: string) {
+  try {
+    localStorage.setItem("mm_theme", id);
+  } catch {
+    /* noop */
+  }
+}
+
+function getLocalStats() {
+  try {
+    const gamesPlayed = Number.parseInt(
+      localStorage.getItem("mm_games_played") || "0",
+      10,
+    );
+    const gamesSetRaw = localStorage.getItem("mm_games_played_set");
+    const gamesSet: string[] = gamesSetRaw ? JSON.parse(gamesSetRaw) : [];
+    const playCountsRaw = localStorage.getItem("mm_game_play_counts");
+    const playCounts: Record<string, number> = playCountsRaw
+      ? JSON.parse(playCountsRaw)
+      : {};
+    const favGame =
+      Object.entries(playCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+    const totalCorrect = Number.parseInt(
+      localStorage.getItem("mm_total_correct") || "0",
+      10,
+    );
+    const totalQuestions = Number.parseInt(
+      localStorage.getItem("mm_total_questions") || "0",
+      10,
+    );
+    const accuracy =
+      totalQuestions > 0
+        ? Math.round((totalCorrect / totalQuestions) * 100)
+        : 0;
+    return { gamesPlayed, uniqueGames: gamesSet.length, favGame, accuracy };
+  } catch {
+    return { gamesPlayed: 0, uniqueGames: 0, favGame: "—", accuracy: 0 };
+  }
+}
 
 export function ProfileScreen({
   profile,
   onProfileUpdate,
   onBack,
+  onTeacherView,
 }: ProfileScreenProps) {
   const resetProgress = useResetProgress();
   const xpNum = Number(profile.xp);
   const xpLevel = Math.floor(xpNum / 100);
   const xpProgress = xpNum % 100;
   const streakNum = Number(profile.streakDays);
+  const [selectedAvatar, setSelectedAvatar] = useState(getAvatar);
+  const [selectedTheme, setSelectedTheme] = useState(getTheme);
+  const stats = getLocalStats();
+
+  // Apply theme on mount and change
+  useEffect(() => {
+    const theme = selectedTheme;
+    if (theme === "neon-blue") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  }, [selectedTheme]);
+
+  const handleAvatarChange = (id: string) => {
+    const av = AVATARS.find((a) => a.id === id);
+    if (!av || xpNum < av.xpRequired) return;
+    setSelectedAvatar(id);
+    setAvatarStorage(id);
+  };
+
+  const handleThemeChange = (id: string) => {
+    const th = THEMES.find((t) => t.id === id);
+    if (!th || xpNum < th.xpRequired) return;
+    setSelectedTheme(id);
+    setThemeStorage(id);
+    toast.success(`Theme changed to ${th.label}!`);
+  };
 
   const handleReset = async () => {
     try {
@@ -126,11 +285,17 @@ export function ProfileScreen({
       };
       onProfileUpdate(resetProfile);
       localStorage.removeItem("meltingmaths_profile");
+      localStorage.removeItem("mm_avatar");
+      localStorage.removeItem("mm_theme");
+      document.documentElement.removeAttribute("data-theme");
       toast.success("Progress reset successfully");
     } catch {
       toast.error("Failed to reset — try again");
     }
   };
+
+  const currentAvatar =
+    AVATARS.find((a) => a.id === selectedAvatar) ?? AVATARS[0];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -164,7 +329,7 @@ export function ProfileScreen({
                 boxShadow: "0 0 20px oklch(0.78 0.2 195 / 0.3)",
               }}
             >
-              🧠
+              {currentAvatar.icon}
             </div>
             <div>
               <div className="font-display text-xl font-bold text-foreground">
@@ -182,7 +347,7 @@ export function ProfileScreen({
             </div>
           </div>
 
-          {/* XP bar */}
+          {/* XP bar with shimmer */}
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
               <span>Level {xpLevel}</span>
@@ -192,16 +357,102 @@ export function ProfileScreen({
             </div>
             <div className="w-full h-3 bg-secondary rounded-full overflow-hidden border border-border/50">
               <motion.div
-                className="h-full rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(90deg, oklch(0.78 0.2 195), oklch(0.7 0.22 280))",
-                }}
+                className="h-full rounded-full xp-bar-shimmer"
                 initial={{ width: 0 }}
                 animate={{ width: `${xpProgress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
               />
             </div>
+          </div>
+        </motion.div>
+
+        {/* Avatar Picker */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="card-neon rounded-2xl p-5"
+        >
+          <h2 className="font-display font-bold text-base text-foreground mb-3">
+            🎭 Avatar
+          </h2>
+          <div className="flex gap-3">
+            {AVATARS.map((av) => {
+              const isUnlocked = xpNum >= av.xpRequired;
+              const isSelected = selectedAvatar === av.id;
+              return (
+                <button
+                  key={av.id}
+                  type="button"
+                  onClick={() => handleAvatarChange(av.id)}
+                  disabled={!isUnlocked}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl transition-all relative
+                    ${isSelected ? "border-2 border-neon-cyan bg-neon-cyan/10" : "border border-border/50 bg-secondary/50"}
+                    ${!isUnlocked ? "opacity-50 cursor-not-allowed" : "hover:border-neon-cyan/60 cursor-pointer"}`}
+                >
+                  <span className="text-3xl">{av.icon}</span>
+                  <span className="text-xs font-semibold text-foreground">
+                    {av.label}
+                  </span>
+                  {!isUnlocked && (
+                    <span className="text-xs text-muted-foreground">
+                      {av.xpRequired} XP
+                    </span>
+                  )}
+                  {!isUnlocked && (
+                    <span className="absolute top-1 right-1 text-xs">🔒</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Theme Picker */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="card-neon rounded-2xl p-5"
+        >
+          <h2 className="font-display font-bold text-base text-foreground mb-3">
+            🎨 Theme
+          </h2>
+          <div className="flex gap-3">
+            {THEMES.map((th) => {
+              const isUnlocked = xpNum >= th.xpRequired;
+              const isSelected = selectedTheme === th.id;
+              return (
+                <button
+                  key={th.id}
+                  type="button"
+                  onClick={() => handleThemeChange(th.id)}
+                  disabled={!isUnlocked}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl transition-all relative
+                    ${isSelected ? "border-2 border-neon-cyan bg-neon-cyan/10" : "border border-border/50 bg-secondary/50"}
+                    ${!isUnlocked ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"}`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full border-2 border-white/20"
+                    style={{
+                      background: th.color,
+                      boxShadow: `0 0 12px ${th.color}`,
+                    }}
+                  />
+                  <span className="text-xs font-semibold text-foreground text-center leading-tight">
+                    {th.label}
+                  </span>
+                  {!isUnlocked && (
+                    <span className="text-xs text-muted-foreground">
+                      {th.xpRequired} XP
+                    </span>
+                  )}
+                  {!isUnlocked && (
+                    <span className="absolute top-1 right-1 text-xs">🔒</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </motion.div>
 
@@ -213,7 +464,7 @@ export function ProfileScreen({
           className="card-neon rounded-2xl p-5"
         >
           <h2 className="font-display font-bold text-base text-foreground mb-4">
-            🏅 Badges
+            🏅 Badges ({profile.badges.length}/{ALL_BADGES.length})
           </h2>
           <div className="grid grid-cols-4 gap-3">
             {ALL_BADGES.map((badge) => {
@@ -226,12 +477,7 @@ export function ProfileScreen({
                 >
                   <div
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all
-                      ${
-                        earned
-                          ? "bg-neon-cyan/10 border border-neon-cyan/40 shadow-neon-sm-cyan"
-                          : "bg-secondary border border-border/50 grayscale opacity-40"
-                      }
-                    `}
+                    ${earned ? "bg-neon-cyan/10 border border-neon-cyan/40 shadow-neon-sm-cyan" : "bg-secondary border border-border/50 grayscale opacity-40"}`}
                   >
                     {badge.icon}
                   </div>
@@ -280,7 +526,7 @@ export function ProfileScreen({
           </motion.div>
         )}
 
-        {/* Stats quick view */}
+        {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -290,7 +536,7 @@ export function ProfileScreen({
           <h2 className="font-display font-bold text-base text-foreground mb-4">
             📊 Stats
           </h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-secondary/50">
               <div className="font-display text-2xl font-bold text-neon-cyan">
                 {xpNum}
@@ -317,7 +563,46 @@ export function ProfileScreen({
               </div>
               <div className="text-muted-foreground text-xs">Current Level</div>
             </div>
+            <div className="p-3 rounded-xl bg-secondary/50">
+              <div className="font-display text-2xl font-bold text-neon-cyan">
+                {stats.gamesPlayed}
+              </div>
+              <div className="text-muted-foreground text-xs">Games Played</div>
+            </div>
+            <div className="p-3 rounded-xl bg-secondary/50">
+              <div className="font-display text-2xl font-bold text-neon-purple">
+                {stats.uniqueGames}
+              </div>
+              <div className="text-muted-foreground text-xs">Unique Games</div>
+            </div>
+            <div className="p-3 rounded-xl bg-secondary/50">
+              <div className="font-display text-xl font-bold text-green-400 truncate">
+                {stats.favGame.replace(/-/g, " ") || "—"}
+              </div>
+              <div className="text-muted-foreground text-xs">Fav. Game</div>
+            </div>
+            <div className="p-3 rounded-xl bg-secondary/50">
+              <div className="font-display text-2xl font-bold text-amber-400">
+                {stats.accuracy}%
+              </div>
+              <div className="text-muted-foreground text-xs">Avg. Accuracy</div>
+            </div>
           </div>
+        </motion.div>
+
+        {/* Teacher View Button */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <button
+            type="button"
+            onClick={onTeacherView}
+            className="w-full p-4 rounded-2xl border border-neon-purple/30 text-neon-purple/70 hover:border-neon-purple hover:text-neon-purple hover:bg-neon-purple/5 transition-all text-sm font-semibold"
+          >
+            🔒 Teacher / Parent View
+          </button>
         </motion.div>
 
         {/* Reset */}
@@ -330,9 +615,7 @@ export function ProfileScreen({
             <AlertDialogTrigger asChild>
               <button
                 type="button"
-                className="w-full p-4 rounded-2xl border border-destructive/30 text-destructive/70
-                hover:border-destructive hover:text-destructive hover:bg-destructive/5
-                transition-all text-sm font-semibold"
+                className="w-full p-4 rounded-2xl border border-destructive/30 text-destructive/70 hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-all text-sm font-semibold"
               >
                 🗑️ Reset All Progress
               </button>

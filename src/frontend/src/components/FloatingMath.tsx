@@ -19,12 +19,20 @@ const SYMBOLS = [
   "α",
   "β",
   "θ",
+  "±",
+  "∂",
+  "λ",
+  "φ",
+  "σ",
+  "μ",
 ];
+
 const COLORS = [
-  "oklch(0.78 0.2 195 / 0.5)",
-  "oklch(0.7 0.22 280 / 0.5)",
-  "oklch(0.65 0.22 255 / 0.5)",
-  "oklch(0.75 0.2 155 / 0.4)",
+  "oklch(0.78 0.2 195 / 0.45)",
+  "oklch(0.7 0.22 280 / 0.4)",
+  "oklch(0.65 0.22 255 / 0.4)",
+  "oklch(0.75 0.2 155 / 0.35)",
+  "oklch(0.72 0.22 330 / 0.3)",
 ];
 
 interface SymbolItem {
@@ -35,20 +43,20 @@ interface SymbolItem {
   duration: string;
   delay: string;
   color: string;
-  alt: boolean;
+  layer: "slow" | "fast" | "alt";
 }
 
 export function FloatingMath() {
   const symbols = useMemo<SymbolItem[]>(() => {
-    return Array.from({ length: 22 }, (_, i) => ({
+    return Array.from({ length: 28 }, (_, i) => ({
       id: i,
       symbol: SYMBOLS[i % SYMBOLS.length],
-      left: `${(i * 4.5 + Math.sin(i) * 3) % 96}%`,
-      size: `${14 + (i % 5) * 8}px`,
-      duration: `${12 + (i % 8) * 3}s`,
-      delay: `${(i * 1.3) % 10}s`,
+      left: `${(i * 3.6 + Math.sin(i * 1.3) * 4) % 97}%`,
+      size: `${12 + (i % 6) * 7}px`,
+      duration: i % 3 === 2 ? `${8 + (i % 5) * 2}s` : `${14 + (i % 7) * 3}s`,
+      delay: `${(i * 1.1) % 12}s`,
       color: COLORS[i % COLORS.length],
-      alt: i % 3 === 0,
+      layer: i % 3 === 0 ? "fast" : i % 3 === 1 ? "alt" : "slow",
     }));
   }, []);
 
@@ -61,7 +69,13 @@ export function FloatingMath() {
       {symbols.map((item) => (
         <span
           key={item.id}
-          className={item.alt ? "animate-float-up-alt" : "animate-float-up"}
+          className={
+            item.layer === "fast"
+              ? "animate-float-up"
+              : item.layer === "alt"
+                ? "animate-float-up-alt"
+                : "animate-float-up"
+          }
           style={{
             position: "absolute",
             bottom: "-5vh",
@@ -73,6 +87,7 @@ export function FloatingMath() {
             fontFamily: '"Geist Mono", monospace',
             fontWeight: 700,
             userSelect: "none",
+            opacity: item.layer === "slow" ? 0.6 : 1,
           }}
         >
           {item.symbol}

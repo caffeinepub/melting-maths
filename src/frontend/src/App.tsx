@@ -1,9 +1,16 @@
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 import type { PlayerProfile } from "./backend.d";
+import { Cutscene } from "./components/Cutscene";
 import { FloatingMath } from "./components/FloatingMath";
-import { useCreateOrUpdateProfile, useProfile } from "./hooks/useQueries";
+import { GradePromotion } from "./components/GradePromotion";
+import {
+  useCreateOrUpdateProfile,
+  useProfile,
+  useRecordGameSession,
+} from "./hooks/useQueries";
 import { GameScreen } from "./screens/GameScreen";
 import { GameSelectScreen } from "./screens/GameSelectScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -11,6 +18,7 @@ import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { ShinchenScreen } from "./screens/ShinchenScreen";
+import { TeacherDashboard } from "./screens/TeacherDashboard";
 
 export type Screen =
   | "onboarding"
@@ -19,7 +27,8 @@ export type Screen =
   | "game"
   | "shinchen"
   | "profile"
-  | "leaderboard";
+  | "leaderboard"
+  | "teacher";
 
 const STORAGE_KEY = "meltingmaths_profile";
 
@@ -28,7 +37,6 @@ function loadCachedProfile(): PlayerProfile | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw);
-    // Convert to proper types
     return {
       ...p,
       xp: BigInt(p.xp ?? 0),
@@ -42,9 +50,138 @@ function loadCachedProfile(): PlayerProfile | null {
 
 function saveCachedProfile(profile: PlayerProfile) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...profile,
+        xp: String(profile.xp),
+        streakDays: String(profile.streakDays),
+        lastPlayedEpoch: String(profile.lastPlayedEpoch),
+      }),
+    );
   } catch {
-    // ignore
+    /* noop */
+  }
+}
+
+function hasCutsceneShown(): boolean {
+  try {
+    return localStorage.getItem("mm_cutscene_shown") === "true";
+  } catch {
+    return false;
+  }
+}
+function markCutsceneShown() {
+  try {
+    localStorage.setItem("mm_cutscene_shown", "true");
+  } catch {
+    /* noop */
+  }
+}
+
+function applyStoredTheme() {
+  try {
+    const theme = localStorage.getItem("mm_theme");
+    if (theme && theme !== "neon-blue") {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  } catch {
+    /* noop */
+  }
+}
+
+// Grade promotion helpers
+const GRADE_GROUP_GAMES: Record<
+  string,
+  { games: string[]; minGrade: number; maxGrade: number }
+> = {
+  "1-3": {
+    games: [
+      "number-catcher",
+      "addition-rocket",
+      "subtraction-blocks",
+      "number-race",
+      "shape-sorter",
+      "skip-counter",
+    ],
+    minGrade: 1,
+    maxGrade: 3,
+  },
+  "4-5": {
+    games: [
+      "fraction-battle",
+      "decimal-dash",
+      "time-master",
+      "multiplication-madness",
+      "division-dungeon",
+      "word-problem-wizard",
+    ],
+    minGrade: 4,
+    maxGrade: 5,
+  },
+  "6-8": {
+    games: [
+      "algebra-escape",
+      "geometry-builder",
+      "integer-war",
+      "ratio-rumble",
+      "percentage-power",
+      "pattern-detective",
+    ],
+    minGrade: 6,
+    maxGrade: 8,
+  },
+  "9-10": {
+    games: [
+      "quadratic-boss",
+      "graph-builder",
+      "trig-sniper",
+      "statistics-showdown",
+      "sequence-solver",
+      "coordinate-quest",
+    ],
+    minGrade: 9,
+    maxGrade: 10,
+  },
+  "11-12": {
+    games: [
+      "calculus-runner",
+      "matrix-code",
+      "probability-strategy",
+      "complex-clash",
+      "logarithm-lab",
+      "vectors-voyage",
+    ],
+    minGrade: 11,
+    maxGrade: 12,
+  },
+};
+
+function getGradeGroup(grade: number) {
+  if (grade <= 3) return "1-3";
+  if (grade <= 5) return "4-5";
+  if (grade <= 8) return "6-8";
+  if (grade <= 10) return "9-10";
+  return "11-12";
+}
+
+function checkGradePromotion(grade: number): boolean {
+  const groupKey = getGradeGroup(grade);
+  const group = GRADE_GROUP_GAMES[groupKey];
+  if (!group || grade >= group.maxGrade) return false;
+
+  const alreadyPromoted =
+    localStorage.getItem(`mm_grade_promoted_${groupKey}`) === "true";
+  if (alreadyPromoted) return false;
+
+  try {
+    const completedRaw = localStorage.getItem("mm_completed_games");
+    const completed: string[] = completedRaw ? JSON.parse(completedRaw) : [];
+    // Need at least 3 games beaten at level 3
+    const beaten3 = group.games.filter((g) => completed.includes(`${g}_3`));
+    return beaten3.length >= 3;
+  } catch {
+    return false;
   }
 }
 
@@ -55,11 +192,20 @@ function AppContent() {
     loadCachedProfile(),
   );
   const [initialized, setInitialized] = useState(false);
+  const [showCutscene, setShowCutscene] = useState(() => !hasCutsceneShown());
+  const [showGradePromotion, setShowGradePromotion] = useState(false);
+  const [promotionGrade, setPromotionGrade] = useState(0);
 
   const { data: backendProfile, isLoading } = useProfile();
   const createOrUpdate = useCreateOrUpdateProfile();
+  const _recordSession = useRecordGameSession();
 
-  // Sync backend profile with local cache
+  // Apply stored theme on startup
+  useEffect(() => {
+    applyStoredTheme();
+  }, []);
+
+  // Sync backend profile
   useEffect(() => {
     if (!isLoading) {
       if (backendProfile) {
@@ -72,14 +218,26 @@ function AppContent() {
 
   // Determine starting screen
   useEffect(() => {
-    if (!initialized) return;
+    if (!initialized || showCutscene) return;
     const profile = backendProfile ?? localProfile;
     if (!profile) {
       setScreen("onboarding");
     } else {
       setScreen("home");
     }
-  }, [initialized, backendProfile, localProfile]);
+  }, [initialized, backendProfile, localProfile, showCutscene]);
+
+  // Check grade promotion when on home screen
+  useEffect(() => {
+    if (screen !== "home") return;
+    const profile = backendProfile ?? localProfile;
+    if (!profile) return;
+    if (checkGradePromotion(profile.grade)) {
+      const newGrade = profile.grade + 1;
+      setPromotionGrade(newGrade);
+      setTimeout(() => setShowGradePromotion(true), 1000);
+    }
+  }, [screen, backendProfile, localProfile]);
 
   const profile = backendProfile ?? localProfile;
 
@@ -99,7 +257,7 @@ function AppContent() {
     try {
       await createOrUpdate.mutateAsync({ name, grade });
     } catch {
-      // Backend unavailable, use local profile
+      /* Backend unavailable */
     }
   };
 
@@ -108,7 +266,50 @@ function AppContent() {
     saveCachedProfile(updated);
   };
 
+  const handleGradePromotion = async () => {
+    if (!profile) return;
+    const groupKey = getGradeGroup(profile.grade);
+    localStorage.setItem(`mm_grade_promoted_${groupKey}`, "true");
+
+    const newBadges = profile.badges.includes("grade_up")
+      ? profile.badges
+      : [...profile.badges, "grade_up"];
+    const updatedProfile: PlayerProfile = {
+      ...profile,
+      grade: promotionGrade,
+      badges: newBadges,
+    };
+    handleProfileUpdate(updatedProfile);
+    setShowGradePromotion(false);
+
+    try {
+      await createOrUpdate.mutateAsync({
+        name: profile.name,
+        grade: promotionGrade,
+      });
+    } catch {
+      /* noop */
+    }
+  };
+
   const navigate = (s: Screen) => setScreen(s);
+
+  // Show cutscene first
+  if (showCutscene) {
+    return (
+      <div className="min-h-screen relative">
+        <FloatingMath />
+        <AnimatePresence>
+          <Cutscene
+            onComplete={() => {
+              markCutsceneShown();
+              setShowCutscene(false);
+            }}
+          />
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   if (!initialized && isLoading) {
     return (
@@ -163,6 +364,7 @@ function AppContent() {
             profile={profile}
             onProfileUpdate={handleProfileUpdate}
             onBack={() => setScreen("home")}
+            onTeacherView={() => setScreen("teacher")}
           />
         )}
         {screen === "leaderboard" && profile && (
@@ -171,12 +373,36 @@ function AppContent() {
             onBack={() => setScreen("home")}
           />
         )}
+        {screen === "teacher" && profile && (
+          <TeacherDashboard
+            profile={profile}
+            onBack={() => setScreen("profile")}
+          />
+        )}
       </div>
+
+      {/* Grade Promotion Overlay */}
+      <AnimatePresence>
+        {showGradePromotion && profile && (
+          <GradePromotion
+            currentGrade={profile.grade}
+            newGrade={promotionGrade}
+            onAccept={handleGradePromotion}
+          />
+        )}
+      </AnimatePresence>
+
       <Toaster />
     </div>
   );
 }
 
+const queryClient = new QueryClient();
+
 export default function App() {
-  return <AppContent />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
+  );
 }

@@ -1,94 +1,68 @@
-# Melting Maths – Version 2
+# Melting Maths
 
 ## Current State
-
-Version 1 includes:
-- 5 playable games: NumberCatcher (Gr 1-3), FractionBattle (Gr 4-5), AlgebraEscape (Gr 6-8), QuadraticBoss (Gr 9-10), CalculusRunner (Gr 11-12)
-- Shinchen scripted AI tutor with keyword-based responses and a chat interface
-- XP, streak, 8 badge types, local leaderboard
-- Dark neon UI with floating math symbols
-
-All 10 remaining "Coming Soon" games are locked (implemented: false). The Shinchen data layer has 5 topic areas, each with 4 hints. Onboarding collects name + grade. No sound effects or level-up animations exist.
+- 15 games fully playable across all 5 grade groups (Grades 1-3, 4-5, 6-8, 9-10, 11-12), 3 per group
+- Shinchen scripted AI tutor with keyword-based responses, step-by-step explanations for 13 topics, hints, encouragement
+- XP system, daily streak counter, 16 badges, local leaderboard (top 20)
+- Level-up overlay animation, sound effects (Web Audio API) with toggle
+- Profile screen: avatar (single 🧠 emoji), badges grid, weak topics, stats (XP, badges, streak, level)
+- Daily challenge card on home screen
+- Shinchen intro on onboarding
 
 ## Requested Changes (Diff)
 
 ### Add
-
-**Games (10 new, completing the full set of 15):**
-- Grades 1–3: AdditionRocket, SubtractionBlocks
-- Grades 4–5: DecimalDash, TimeMaster
-- Grades 6–8: GeometryBuilder, IntegerWar
-- Grades 9–10: GraphBuilder, TrigSniper
-- Grades 11–12: MatrixCode, ProbabilityStrategy
-
-Each new game must have 3 levels of increasing difficulty with 8 questions per level, returning { score, correct, incorrect }.
-
-**Shinchen V2 upgrades:**
-- Extended topic tip libraries: geometry, integers, decimals/time, trigonometry, matrices, probability (6 new topic sections in shinchen.ts)
-- More detailed step-by-step explanations in all existing topics (expand from 4 to 8 hints each)
-- More natural "step-by-step mode": if user says "explain", "step by step", "how do I", give a numbered walk-through response
-
-**New badge types (8 new, total 16):**
-- perfect_score: Score 100% on any game
-- speed_demon_v2: Finish any Level 3 game in under 30s
-- fraction_master: Complete all fraction levels
-- calculus_legend: Complete all calculus levels
-- ten_games: Play 10 total games
-- xp_1000: Earn 1000 XP
-- xp_2500: Earn 2500 XP
-- all_games: Play all 15 games at least once
-
-**Sound effects (browser-based Web Audio API, no external libs):**
-- Correct answer: short ascending beep
-- Wrong answer: short descending buzz
-- Level complete: fanfare sequence
-- XP earned: chime
-- All sounds opt-in, muted by default, toggled via a sound icon in the game header
-
-**Level-up animations:**
-- When XP crosses a level threshold, show a full-screen overlay with animated "LEVEL UP!" text and particle burst (CSS/framer-motion only)
-- When a badge is earned, toast with badge icon and name
-
-**Onboarding improvements:**
-- Add animated Shinchen character intro panel (step 0) before name/grade entry
-- Smoother multi-step flow with progress indicator
+- **21 additional games** (bringing total from 15 to 36): Some may share mechanic styles (quiz/select/type-answer) for scope management but each has unique math content per grade:
+  - Grades 1-3: Number Race (counting), Shape Sorter (shapes), Skip Counter (multiplication intro)
+  - Grades 4-5: Multiplication Madness, Division Dungeon, Word Problem Wizard
+  - Grades 6-8: Ratio Rumble, Percentage Power, Pattern Detective
+  - Grades 9-10: Statistics Showdown, Sequence Solver, Coordinate Quest
+  - Grades 11-12: Complex Numbers Clash, Logarithm Lab, Vectors Voyage
+  - Boss game per grade group (5 total): Math Mega Boss (unlocked after completing all 3 grade games) -- uses mixed questions from all topics
+- **PIN-protected parent/teacher dashboard**: accessible via a lock icon on profile screen; PIN is 1234 (can be changed); shows student name, grade, XP, badges earned, weak topics, games played
+- **Friend challenge feature**: after completing a game, option to copy a shareable "challenge link" (URL with score params encoded) so friends can try to beat it
+- **Shinchen V3 upgrades**:
+  - Daily 5-question quiz mode accessible from Shinchen screen
+  - Weak topic drill mode: if profile.weakTopics.length > 0, Shinchen can start a targeted drill
+  - Animated Shinchen avatar with 3 expression states (happy, thinking, celebrating) using CSS animations
+- **Custom unlock themes**: 3 color themes (Neon Blue default, Cosmic Purple, Solar Gold) unlockable at XP 500, 1500 -- selectable from profile
+- **Grade progression**: when all 3 games in the player's current grade group are completed (Level 3 beaten on each), show a "Grade Promotion" celebration and increment grade
+- **Stats screen expansion**: add games played count, unique games played count, favourite game (most played), accuracy % (from local session history)
+- **2 new unlockable avatars** (unlocked by earning XP milestones):
+  - 🚀 Rocket (unlocked at XP 200)
+  - 🧙 Wizard (unlocked at XP 1000)
+  - Both added alongside existing 🧠 Brain default
+- **More badge types** (8 additional for total ~24):
+  - grade_up: First grade promotion
+  - quiz_master: Complete Shinchen daily quiz with 5/5
+  - theme_collector: Unlock all themes
+  - boss_slayer: Beat any boss game
+  - week_warrior: 7 unique games in 7 days
+  - challenge_accepted: Share a friend challenge
+  - drill_sergeant: Complete 3 weak-topic drills
+  - explorer: Play a game 2 grades above your current grade
+- **Visual polish**: improve FloatingMath with more symbols + subtle parallax, add entry cutscene on first load (animated logo reveal), improve game cards with subtle glow pulse on hover, add shimmer effect on XP bar fill
 
 ### Modify
-
-- **GameSelectScreen**: Mark all 15 games as `implemented: true`, allow any grade to play any game (remove grade-gating, just visually highlight current grade's games)
-- **GameScreen**: Wire in all 10 new game components; add sound toggle icon in header; fire level-up animation when XP threshold is crossed; award new badges based on game result
-- **ShinchenScreen**: Expand quick prompts; add "Explain step by step" prompt; use extended topic library
-- **ProfileScreen**: Show all 16 badges in grid
-- **HomeScreen**: Show a "Daily Challenge" card above the utility grid (rotating daily from Shinchen daily challenges list)
+- **ProfileScreen**: add avatar selector (3 avatars, 2 unlockable), add stats expansion, add theme selector, add teacher dashboard access button
+- **ShinchenScreen**: add animated avatar (CSS expression states), add quiz mode tab, add drill mode tab, update chat to reference 36 games
+- **GameSelectScreen**: update game list to show all 36 games including new ones + boss games; show "BOSS" badge on boss games
+- **GameScreen**: add friend challenge share button on result screen; add "All Games" badge trigger update for 36 games
+- **HomeScreen**: add grade progression notification if eligible
+- **App.tsx**: add theme support (CSS class on root), add teacher dashboard screen routing
 
 ### Remove
-
-- Nothing removed
+- Nothing removed; all V2 content retained
 
 ## Implementation Plan
-
-1. Create 10 new game components in `src/frontend/src/components/games/`:
-   - AdditionRocket, SubtractionBlocks (Gr 1–3)
-   - DecimalDash, TimeMaster (Gr 4–5)
-   - GeometryBuilder, IntegerWar (Gr 6–8)
-   - GraphBuilder, TrigSniper (Gr 9–10)
-   - MatrixCode, ProbabilityStrategy (Gr 11–12)
-   Each follows the same prop signature: `{ level: number, onComplete: (res) => void, onBack: () => void }`
-
-2. Expand `shinchen.ts` with 6 new topic hint arrays and extend existing ones to 8 hints each; add step-by-step response logic
-
-3. Add `useSoundEffects` hook using Web Audio API in `src/frontend/src/hooks/useSoundEffects.ts`
-
-4. Add `LevelUpOverlay` component and `BadgeToast` logic for earned badges
-
-5. Update `GameSelectScreen`: set all `implemented: true`, remove grade-gating click restriction
-
-6. Update `GameScreen`: import 10 new games, add sound toggle, fire level-up overlay, award new badges
-
-7. Update `ProfileScreen`: add 8 new badge definitions to `ALL_BADGES`
-
-8. Update `HomeScreen`: add Daily Challenge card
-
-9. Update `OnboardingScreen`: add Shinchen intro step and multi-step progress bar
-
-10. Validate: typecheck + build
+1. Add 21 new game components (quiz-style with unique math content per topic; 5 boss games with mixed questions)
+2. Add theme system (3 OKLCH themes, localStorage persistence, profile selector)
+3. Add avatar selector to ProfileScreen (3 avatars, unlock logic based on XP)
+4. Add teacher/parent dashboard screen (PIN 1234, shows read-only stats)
+5. Add friend challenge share on result screen (encode score/game/level as URL params)
+6. Upgrade Shinchen: animated avatar expressions (CSS), quiz mode (5 random questions), drill mode (weak topics)
+7. Add grade progression logic and celebration overlay
+8. Add 8 new badges, update badge checking
+9. Update GameSelectScreen for 36 games + boss games
+10. Expand stats on ProfileScreen
+11. Visual polish: FloatingMath upgrade, entry cutscene, XP shimmer, card glow pulse
