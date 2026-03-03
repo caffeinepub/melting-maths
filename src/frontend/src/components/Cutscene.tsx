@@ -5,8 +5,8 @@ interface CutsceneProps {
   onComplete: () => void;
 }
 
-const SLIDE_DURATION = 1200; // ms per auto-advancing slide
-const LAST_SLIDE_TIMEOUT = 2000; // ms before last slide auto-completes
+const SLIDE_DURATION = 6000; // ms per auto-advancing slide
+const LAST_SLIDE_TIMEOUT = 8000; // ms before last slide auto-completes
 const TOTAL_SLIDES = 5;
 
 const BURST_SYMBOLS = [
@@ -531,9 +531,9 @@ export function Cutscene({ onComplete }: CutsceneProps) {
     return () => clearTimeout(timer);
   }, [currentSlide, onComplete]);
 
-  // Total safety timeout: 7s max
+  // Total safety timeout: 35s max
   useEffect(() => {
-    const timer = setTimeout(onComplete, 7000);
+    const timer = setTimeout(onComplete, 35000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 

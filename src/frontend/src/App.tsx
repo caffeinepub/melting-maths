@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { PlayerProfile } from "./backend.d";
 import { Cutscene } from "./components/Cutscene";
 import { FloatingMath } from "./components/FloatingMath";
+import { GradeBackground } from "./components/GradeBackground";
 import { GradePromotion } from "./components/GradePromotion";
 import {
   useCreateOrUpdateProfile,
@@ -84,6 +85,39 @@ function applyStoredTheme() {
     const theme = localStorage.getItem("mm_theme");
     if (theme && theme !== "neon-blue") {
       document.documentElement.setAttribute("data-theme", theme);
+    }
+  } catch {
+    /* noop */
+  }
+}
+
+function applyStoredColorMode() {
+  try {
+    const mode = localStorage.getItem("mm_color_mode");
+    if (mode === "light") {
+      document.documentElement.setAttribute("data-color-mode", "light");
+    }
+  } catch {
+    /* noop */
+  }
+}
+
+// Award streak freeze tokens based on streak days (1 token per 7-day milestone)
+function awardStreakFreezeTokens(streakDays: number) {
+  try {
+    const milestones = Math.floor(streakDays / 7);
+    const awarded = Number.parseInt(
+      localStorage.getItem("mm_streak_freeze_awarded") ?? "0",
+      10,
+    );
+    if (milestones > awarded) {
+      const tokens = Number.parseInt(
+        localStorage.getItem("mm_streak_freeze_tokens") ?? "0",
+        10,
+      );
+      const newTokens = tokens + (milestones - awarded);
+      localStorage.setItem("mm_streak_freeze_tokens", String(newTokens));
+      localStorage.setItem("mm_streak_freeze_awarded", String(milestones));
     }
   } catch {
     /* noop */
@@ -200,9 +234,10 @@ function AppContent() {
   const createOrUpdate = useCreateOrUpdateProfile();
   const _recordSession = useRecordGameSession();
 
-  // Apply stored theme on startup
+  // Apply stored theme and color mode on startup
   useEffect(() => {
     applyStoredTheme();
+    applyStoredColorMode();
   }, []);
 
   // Sync backend profile
@@ -211,6 +246,8 @@ function AppContent() {
       if (backendProfile) {
         setLocalProfile(backendProfile);
         saveCachedProfile(backendProfile);
+        // Award streak freeze tokens
+        awardStreakFreezeTokens(Number(backendProfile.streakDays));
       }
       setInitialized(true);
     }
@@ -328,9 +365,14 @@ function AppContent() {
     );
   }
 
+  // Determine grade for background (use profile grade or default 1)
+  const gradeForBg = profile?.grade ?? 1;
+  const showGradeBackground = screen === "game-select" || screen === "game";
+
   return (
     <div className="min-h-screen relative">
       <FloatingMath />
+      {showGradeBackground && <GradeBackground grade={gradeForBg} />}
       <div className="relative z-10">
         {screen === "onboarding" && (
           <OnboardingScreen onComplete={handleOnboardingComplete} />

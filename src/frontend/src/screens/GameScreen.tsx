@@ -1,9 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { PlayerProfile } from "../backend.d";
+import { ComboOverlay } from "../components/ComboOverlay";
+import { ConfettiBurst } from "../components/ConfettiBurst";
 import { LevelUpOverlay } from "../components/LevelUpOverlay";
+import type { Mistake } from "../components/MistakeReplay";
+import { MistakeReplay } from "../components/MistakeReplay";
 import { NeonButton } from "../components/NeonButton";
 import { AdditionRocket } from "../components/games/AdditionRocket";
 import { AlgebraEscape } from "../components/games/AlgebraEscape";
@@ -46,6 +50,8 @@ import {
   SHINCHEN_ENCOURAGEMENT_BAD,
   SHINCHEN_ENCOURAGEMENT_GOOD,
 } from "../data/shinchen";
+import { SHINCHEN_STORIES } from "../data/shinchenStories";
+import { checkAndCompleteChallenge } from "../data/weeklyChallenge";
 import { useRecordGameSession, useUnlockedLevels } from "../hooks/useQueries";
 import { useSoundEffects } from "../hooks/useSoundEffects";
 
@@ -150,7 +156,6 @@ const GAME_META: Record<
     topicId: "probability",
     xpPerCorrect: 15,
   },
-  // New games
   "number-race": {
     name: "Number Race",
     icon: "⭐",
@@ -241,7 +246,6 @@ const GAME_META: Record<
     topicId: "calculus",
     xpPerCorrect: 15,
   },
-  // Boss games
   "boss-1-3": {
     name: "Boss Battle: Grades 1-3",
     icon: "⚔️",
@@ -274,7 +278,7 @@ const GAME_META: Record<
   },
 };
 
-type GameState = "level-select" | "playing" | "result";
+type GameState = "level-select" | "story" | "playing" | "result";
 
 interface GameResult {
   score: number;
@@ -282,6 +286,12 @@ interface GameResult {
   incorrect: number;
   level: number;
   xpEarned: number;
+}
+
+interface TopScore {
+  level: number;
+  score: number;
+  date: string;
 }
 
 const LEVEL_META = [
@@ -338,19 +348,45 @@ function DifficultyStars({ count }: { count: number }) {
   );
 }
 
+function getTopScores(gameId: string): TopScore[] {
+  try {
+    const raw = localStorage.getItem(`mm_game_scores_${gameId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTopScore(gameId: string, level: number, score: number) {
+  try {
+    const scores = getTopScores(gameId);
+    scores.push({ level, score, date: new Date().toLocaleDateString() });
+    scores.sort((a, b) => b.score - a.score);
+    const limited = scores.slice(0, 10);
+    localStorage.setItem(`mm_game_scores_${gameId}`, JSON.stringify(limited));
+  } catch {
+    /* noop */
+  }
+}
+
 function LevelSelectCard({
   gameId,
   meta,
+  timeAttackMode,
   onSelect,
   onBack,
+  onToggleTimeAttack,
 }: {
   gameId: string;
   meta: (typeof GAME_META)[string];
+  timeAttackMode: boolean;
   onSelect: (level: number) => void;
   onBack: () => void;
+  onToggleTimeAttack: () => void;
 }) {
   const { data: unlocked = [1] } = useUnlockedLevels(gameId);
   const isBoss = gameId.startsWith("boss-");
+  const topScores = getTopScores(gameId).slice(0, 3);
 
   if (isBoss) {
     return (
@@ -359,6 +395,7 @@ function LevelSelectCard({
           type="button"
           onClick={onBack}
           className="text-muted-foreground hover:text-foreground text-sm mb-6 self-start"
+          data-ocid="game.back.button"
         >
           ← Back
         </button>
@@ -378,6 +415,40 @@ function LevelSelectCard({
             Ultimate challenge — face the math boss!
           </p>
         </motion.div>
+
+        {/* Time Attack Toggle */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="mb-4"
+        >
+          <button
+            type="button"
+            onClick={onToggleTimeAttack}
+            className="w-full py-3 rounded-xl font-display font-bold text-sm transition-all flex items-center justify-center gap-2"
+            style={
+              timeAttackMode
+                ? {
+                    background: "oklch(0.2 0.06 50 / 0.8)",
+                    border: "1px solid oklch(0.82 0.18 50 / 0.6)",
+                    color: "oklch(0.92 0.18 50)",
+                    boxShadow: "0 0 16px oklch(0.82 0.18 50 / 0.3)",
+                  }
+                : {
+                    background: "oklch(0.12 0.02 265)",
+                    border: "1px solid oklch(0.3 0.06 270 / 0.5)",
+                    color: "oklch(0.6 0.04 270)",
+                  }
+            }
+            data-ocid="game.time_attack.toggle"
+          >
+            <span>⚡</span>
+            <span>Time Attack {timeAttackMode ? "ON" : "OFF"}</span>
+            {timeAttackMode && <span>(30s · +20 XP bonus)</span>}
+          </button>
+        </motion.div>
+
         <div className="flex flex-col gap-3">
           {LEVEL_META.map((lvl, i) => {
             const isUnlocked = unlocked.includes(lvl.num) || lvl.num === 1;
@@ -407,6 +478,7 @@ function LevelSelectCard({
                           opacity: 0.55,
                         }
                   }
+                  data-ocid={`game.level.button.${lvl.num}`}
                 >
                   <div className="relative flex items-center gap-4 p-4">
                     <div
@@ -457,6 +529,38 @@ function LevelSelectCard({
             );
           })}
         </div>
+
+        {/* Top scores */}
+        {topScores.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="mt-4 p-4 rounded-xl"
+            style={{
+              background: "oklch(0.1 0.02 265 / 0.7)",
+              border: "1px solid oklch(0.3 0.06 270 / 0.4)",
+            }}
+          >
+            <div className="text-xs font-display font-bold text-muted-foreground mb-2">
+              🏅 YOUR TOP SCORES
+            </div>
+            {topScores.map((s, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: ordered top-scores
+                key={i}
+                className="flex items-center justify-between text-xs mb-1"
+                data-ocid={`game.top_score.item.${i + 1}`}
+              >
+                <span className="text-muted-foreground">
+                  #{i + 1} Lv.{s.level}
+                </span>
+                <span className="font-bold text-neon-cyan">{s.score}%</span>
+                <span className="text-muted-foreground">{s.date}</span>
+              </div>
+            ))}
+          </motion.div>
+        )}
       </div>
     );
   }
@@ -467,6 +571,7 @@ function LevelSelectCard({
         type="button"
         onClick={onBack}
         className="text-muted-foreground hover:text-foreground text-sm mb-6 self-start"
+        data-ocid="game.back.button"
       >
         ← Back
       </button>
@@ -498,6 +603,41 @@ function LevelSelectCard({
         </div>
       </motion.div>
 
+      {/* Time Attack Toggle */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="mb-4"
+      >
+        <button
+          type="button"
+          onClick={onToggleTimeAttack}
+          className="w-full py-3 rounded-xl font-display font-bold text-sm transition-all flex items-center justify-center gap-2"
+          style={
+            timeAttackMode
+              ? {
+                  background: "oklch(0.2 0.06 50 / 0.8)",
+                  border: "1px solid oklch(0.82 0.18 50 / 0.6)",
+                  color: "oklch(0.92 0.18 50)",
+                  boxShadow: "0 0 16px oklch(0.82 0.18 50 / 0.3)",
+                }
+              : {
+                  background: "oklch(0.12 0.02 265)",
+                  border: "1px solid oklch(0.3 0.06 270 / 0.5)",
+                  color: "oklch(0.6 0.04 270)",
+                }
+          }
+          data-ocid="game.time_attack.toggle"
+        >
+          <span>⚡</span>
+          <span>Time Attack {timeAttackMode ? "ON" : "OFF"}</span>
+          {timeAttackMode && (
+            <span className="text-xs opacity-70">(30s · +20 XP bonus)</span>
+          )}
+        </button>
+      </motion.div>
+
       <div className="flex flex-col gap-3">
         {LEVEL_META.map((lvl, i) => {
           const isUnlocked = unlocked.includes(lvl.num) || lvl.num === 1;
@@ -527,6 +667,7 @@ function LevelSelectCard({
                         opacity: 0.55,
                       }
                 }
+                data-ocid={`game.level.button.${lvl.num}`}
               >
                 {isUnlocked && (
                   <div
@@ -591,6 +732,39 @@ function LevelSelectCard({
           );
         })}
       </div>
+
+      {/* Top scores section */}
+      {topScores.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mt-4 p-4 rounded-xl"
+          style={{
+            background: "oklch(0.1 0.02 265 / 0.7)",
+            border: "1px solid oklch(0.3 0.06 270 / 0.4)",
+          }}
+          data-ocid="game.top_scores.panel"
+        >
+          <div className="text-xs font-display font-bold text-muted-foreground mb-2">
+            🏅 YOUR TOP SCORES
+          </div>
+          {topScores.map((s, i) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: ordered top-scores
+              key={i}
+              className="flex items-center justify-between text-xs mb-1"
+              data-ocid={`game.top_score.item.${i + 1}`}
+            >
+              <span className="text-muted-foreground">
+                #{i + 1} Lv.{s.level}
+              </span>
+              <span className="font-bold text-neon-cyan">{s.score}%</span>
+              <span className="text-muted-foreground">{s.date}</span>
+            </div>
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -598,22 +772,34 @@ function LevelSelectCard({
 function ResultCard({
   result,
   gameName,
+  mistakes,
   onNextLevel,
   onRetry,
   onBack,
 }: {
   result: GameResult;
   gameName: string;
+  mistakes: Mistake[];
   onNextLevel: () => void;
   onRetry: () => void;
   onBack: () => void;
 }) {
   const isGood = result.score >= 70;
   const isExcellent = result.score >= 90;
+  const [showMistakes, setShowMistakes] = useState(false);
+
   const messages = isGood
     ? SHINCHEN_ENCOURAGEMENT_GOOD
     : SHINCHEN_ENCOURAGEMENT_BAD;
   const message = messages[Math.floor(Math.random() * messages.length)];
+
+  // Shinchen mood based on score
+  const getMood = () => {
+    if (result.score >= 80) return { emoji: "🎉", cls: "shinchen-celebrating" };
+    if (result.score >= 50) return { emoji: "😊", cls: "shinchen-happy" };
+    return { emoji: "😢", cls: "shinchen-sad" };
+  };
+  const mood = getMood();
 
   const handleShare = () => {
     const text = `I scored ${result.score}% on ${gameName} Level ${result.level} in Melting Maths! Can you beat me? 🔥 #MeltingMaths`;
@@ -623,7 +809,6 @@ function ResultCard({
         toast.success(
           "Challenge copied to clipboard! Share it with a friend! 🤝",
         );
-        // Track challenge badge
         try {
           const badges =
             JSON.parse(localStorage.getItem("meltingmaths_profile") || "{}")
@@ -651,128 +836,172 @@ function ResultCard({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 15 }}
-        className="w-full max-w-sm flex flex-col items-center gap-6 relative"
-      >
-        {/* Excellent score burst particles */}
-        {isExcellent && (
-          <div className="score-burst">
-            {[0, 60, 120, 180, 240, 300].map((angle, i) => {
-              const rad = (angle * Math.PI) / 180;
-              const tx = `${Math.cos(rad) * 60}px`;
-              const ty = `${Math.sin(rad) * 60}px`;
-              return (
-                <motion.div
-                  // biome-ignore lint/suspicious/noArrayIndexKey: static burst animation
-                  key={i}
-                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                  animate={{ x: tx, y: ty, opacity: 0, scale: 0 }}
-                  transition={{
-                    duration: 0.8,
-                    delay: i * 0.05,
-                    ease: "easeOut",
-                  }}
-                  className="absolute text-xl pointer-events-none"
-                  style={{ left: "-10px", top: "-10px" }}
-                >
-                  ⭐
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+    <>
+      <MistakeReplay
+        mistakes={mistakes}
+        open={showMistakes}
+        onClose={() => setShowMistakes(false)}
+      />
 
-        <div className="text-7xl animate-bounce-in">
-          {getRankEmoji(result.score)}
-        </div>
-        <div className="text-center">
-          <div className="font-display text-4xl font-black gradient-text-game">
-            {result.score}%
-          </div>
-          <div className="text-muted-foreground text-sm mt-1">
-            Level {result.level} Complete
-          </div>
-        </div>
-
-        <div className="w-full card-neon rounded-2xl p-5 grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="font-display text-2xl font-bold text-green-400">
-              {result.correct}
-            </div>
-            <div className="text-muted-foreground text-xs">Correct</div>
-          </div>
-          <div className="text-center">
-            <div className="font-display text-2xl font-bold text-red-400">
-              {result.incorrect}
-            </div>
-            <div className="text-muted-foreground text-xs">Incorrect</div>
-          </div>
-          <div className="text-center">
-            <div className="font-display text-2xl font-bold text-neon-cyan animate-xp-flash">
-              +{result.xpEarned}
-            </div>
-            <div className="text-muted-foreground text-xs">XP Earned</div>
-          </div>
-        </div>
-
-        <div
-          className="w-full rounded-2xl p-4 relative overflow-hidden"
-          style={{
-            background:
-              "linear-gradient(135deg, oklch(0.1 0.03 280 / 0.8), oklch(0.08 0.02 265))",
-            border: "1px solid oklch(0.7 0.22 280 / 0.3)",
-          }}
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          className="w-full max-w-sm flex flex-col items-center gap-6 relative"
         >
-          <div className="flex items-start gap-3">
-            <div className="text-2xl animate-pulse-glow flex-shrink-0">🌟</div>
-            <div>
-              <div className="font-display text-xs font-bold text-neon-purple mb-1">
-                SHINCHEN
-              </div>
-              <p className="text-foreground/90 text-sm">{message}</p>
+          {/* Excellent score burst particles */}
+          {isExcellent && (
+            <div className="score-burst">
+              {[0, 60, 120, 180, 240, 300].map((angle, i) => {
+                const rad = (angle * Math.PI) / 180;
+                const tx = `${Math.cos(rad) * 60}px`;
+                const ty = `${Math.sin(rad) * 60}px`;
+                return (
+                  <motion.div
+                    // biome-ignore lint/suspicious/noArrayIndexKey: static burst animation
+                    key={i}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                    animate={{ x: tx, y: ty, opacity: 0, scale: 0 }}
+                    transition={{
+                      duration: 0.8,
+                      delay: i * 0.05,
+                      ease: "easeOut",
+                    }}
+                    className="absolute text-xl pointer-events-none"
+                    style={{ left: "-10px", top: "-10px" }}
+                  >
+                    ⭐
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="text-7xl animate-bounce-in">
+            {getRankEmoji(result.score)}
+          </div>
+          <div className="text-center">
+            <div className="font-display text-4xl font-black gradient-text-game">
+              {result.score}%
+            </div>
+            <div className="text-muted-foreground text-sm mt-1">
+              Level {result.level} Complete
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col gap-3 w-full">
-          {result.level < 3 && isGood && (
+          <div className="w-full card-neon rounded-2xl p-5 grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="font-display text-2xl font-bold text-green-400">
+                {result.correct}
+              </div>
+              <div className="text-muted-foreground text-xs">Correct</div>
+            </div>
+            <div className="text-center">
+              <div className="font-display text-2xl font-bold text-red-400">
+                {result.incorrect}
+              </div>
+              <div className="text-muted-foreground text-xs">Incorrect</div>
+            </div>
+            <div className="text-center">
+              <div className="font-display text-2xl font-bold text-neon-cyan animate-xp-flash">
+                +{result.xpEarned}
+              </div>
+              <div className="text-muted-foreground text-xs">XP Earned</div>
+            </div>
+          </div>
+
+          {/* Shinchen mood reaction */}
+          <div
+            className="w-full rounded-2xl p-4 relative overflow-hidden"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.1 0.03 280 / 0.8), oklch(0.08 0.02 265))",
+              border: "1px solid oklch(0.7 0.22 280 / 0.3)",
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`text-2xl flex-shrink-0 ${mood.cls}`}>
+                {mood.emoji}
+              </div>
+              <div>
+                <div className="font-display text-xs font-bold text-neon-purple mb-1">
+                  SHINCHEN
+                </div>
+                <p className="text-foreground/90 text-sm">{message}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 w-full">
+            {result.level < 3 && isGood && (
+              <NeonButton
+                variant="cyan"
+                size="lg"
+                fullWidth
+                onClick={onNextLevel}
+                data-ocid="game.result.next_level.button"
+              >
+                Next Level! ⚡
+              </NeonButton>
+            )}
+
+            {/* Review Mistakes button */}
+            {mistakes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowMistakes(true)}
+                className="w-full py-3 px-4 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.02]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.15 0.04 280 / 0.8), oklch(0.1 0.02 265))",
+                  border: "1px solid oklch(0.7 0.22 280 / 0.5)",
+                  color: "oklch(0.85 0.18 280)",
+                }}
+                data-ocid="game.result.review_mistakes.button"
+              >
+                📚 Review Mistakes ({mistakes.length})
+              </button>
+            )}
+
+            {result.score >= 60 && (
+              <button
+                type="button"
+                onClick={handleShare}
+                className="w-full py-3 px-4 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.02]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.15 0.04 155 / 0.8), oklch(0.1 0.02 265))",
+                  border: "1px solid oklch(0.72 0.22 155 / 0.5)",
+                  color: "oklch(0.82 0.18 155)",
+                }}
+                data-ocid="game.result.share.button"
+              >
+                🤝 Share Challenge
+              </button>
+            )}
             <NeonButton
-              variant="cyan"
-              size="lg"
+              variant="purple"
+              size="md"
               fullWidth
-              onClick={onNextLevel}
+              onClick={onRetry}
+              data-ocid="game.result.retry.button"
             >
-              Next Level! ⚡
+              Try Again 🔄
             </NeonButton>
-          )}
-          {result.score >= 60 && (
-            <button
-              type="button"
-              onClick={handleShare}
-              className="w-full py-3 px-4 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.02]"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.15 0.04 155 / 0.8), oklch(0.1 0.02 265))",
-                border: "1px solid oklch(0.72 0.22 155 / 0.5)",
-                color: "oklch(0.82 0.18 155)",
-              }}
+            <NeonButton
+              variant="ghost"
+              size="md"
+              fullWidth
+              onClick={onBack}
+              data-ocid="game.result.back.button"
             >
-              🤝 Share Challenge
-            </button>
-          )}
-          <NeonButton variant="purple" size="md" fullWidth onClick={onRetry}>
-            Try Again 🔄
-          </NeonButton>
-          <NeonButton variant="ghost" size="md" fullWidth onClick={onBack}>
-            Back to Games
-          </NeonButton>
-        </div>
-      </motion.div>
-    </div>
+              Back to Games
+            </NeonButton>
+          </div>
+        </motion.div>
+      </div>
+    </>
   );
 }
 
@@ -851,6 +1080,107 @@ function markGameCompleted(gameId: string, level: number) {
   }
 }
 
+// Shinchen story intro card
+function StoryIntro({
+  gameId,
+  onStart,
+}: {
+  gameId: string;
+  onStart: () => void;
+}) {
+  const story = SHINCHEN_STORIES[gameId];
+  if (!story) {
+    onStart();
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 18 }}
+        className="w-full max-w-sm"
+      >
+        <div
+          className="rounded-3xl p-6 text-center"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.1 0.03 280 / 0.9), oklch(0.08 0.02 265 / 0.95))",
+            border: "1px solid oklch(0.7 0.22 280 / 0.4)",
+            boxShadow:
+              "0 0 40px oklch(0.7 0.22 280 / 0.2), 0 20px 60px oklch(0 0 0 / 0.4)",
+          }}
+          data-ocid="game.story_intro.card"
+        >
+          {/* Animated Shinchen */}
+          <motion.div
+            animate={{ y: [0, -8, 0], rotate: [-3, 3, -3] }}
+            transition={{
+              duration: 2,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "easeInOut",
+            }}
+            className="text-6xl mb-4"
+          >
+            🌟
+          </motion.div>
+
+          <div
+            className="font-display font-black text-xs tracking-widest mb-3"
+            style={{ color: "oklch(0.7 0.22 280)" }}
+          >
+            SHINCHEN'S STORY
+          </div>
+
+          <p
+            className="text-foreground/90 text-base leading-relaxed mb-6 font-medium"
+            style={{
+              textShadow: "0 0 20px oklch(0.7 0.22 280 / 0.2)",
+            }}
+          >
+            {story}
+          </p>
+
+          <motion.button
+            type="button"
+            onClick={onStart}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-full py-4 rounded-2xl font-display font-black text-lg transition-all"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.2 0.06 195), oklch(0.15 0.04 265))",
+              border: "2px solid oklch(0.78 0.2 195 / 0.7)",
+              color: "oklch(0.9 0.18 195)",
+              boxShadow:
+                "0 0 30px oklch(0.78 0.2 195 / 0.3), 0 0 60px oklch(0.78 0.2 195 / 0.15)",
+            }}
+            data-ocid="game.story_intro.start_button"
+          >
+            ▶ Let's Go!
+          </motion.button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function hasStoryBeenShown(gameId: string): boolean {
+  try {
+    return sessionStorage.getItem(`mm_story_shown_${gameId}`) === "true";
+  } catch {
+    return false;
+  }
+}
+function markStoryShown(gameId: string) {
+  try {
+    sessionStorage.setItem(`mm_story_shown_${gameId}`, "true");
+  } catch {
+    /* noop */
+  }
+}
+
 export function GameScreen({
   gameId,
   profile,
@@ -864,6 +1194,18 @@ export function GameScreen({
   const [soundEnabled, setSoundEnabledState] = useState(getSoundEnabled);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpValue, setLevelUpValue] = useState(1);
+  const [levelUpXp, setLevelUpXp] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // V8 features
+  const [comboCount, setComboCount] = useState(0);
+  const [showCombo, setShowCombo] = useState(false);
+  const [timeAttackMode, setTimeAttackMode] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [mistakes, setMistakes] = useState<Mistake[]>([]);
+  const [hintActive, setHintActive] = useState(false);
+  const timeAttackRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const recordSession = useRecordGameSession();
   const queryClient = useQueryClient();
   const sounds = useSoundEffects(soundEnabled);
@@ -873,6 +1215,61 @@ export function GameScreen({
     setSoundEnabledState(next);
     setSoundEnabled(next);
   };
+
+  // Time attack countdown
+  useEffect(() => {
+    if (gameState === "playing" && timeAttackMode) {
+      setTimeLeft(30);
+      timeAttackRef.current = setInterval(() => {
+        setTimeLeft((t) => {
+          if (t <= 1) {
+            if (timeAttackRef.current) clearInterval(timeAttackRef.current);
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timeAttackRef.current) clearInterval(timeAttackRef.current);
+    };
+  }, [gameState, timeAttackMode]);
+
+  // Time attack: auto-complete when time runs out
+  // We signal this via a ref so the game can detect it
+  const timeUpRef = useRef(false);
+  useEffect(() => {
+    if (timeAttackMode && timeLeft === 0 && gameState === "playing") {
+      timeUpRef.current = true;
+    }
+  }, [timeLeft, timeAttackMode, gameState]);
+
+  const handleCorrect = useCallback(() => {
+    sounds.playCorrect();
+    setComboCount((c) => {
+      const next = c + 1;
+      if (next >= 3) {
+        setShowCombo(true);
+      }
+      return next;
+    });
+  }, [sounds]);
+
+  const handleWrong = useCallback(
+    (question?: string, yourAnswer?: string, correctAnswer?: string) => {
+      sounds.playWrong();
+      setComboCount(0);
+      if (question && yourAnswer && correctAnswer) {
+        setMistakes((m) => [...m, { question, yourAnswer, correctAnswer }]);
+      }
+    },
+    [sounds],
+  );
+
+  const handleHintPress = useCallback(() => {
+    setHintActive(true);
+    setTimeout(() => setHintActive(false), 3000);
+  }, []);
 
   if (!meta) {
     return (
@@ -898,12 +1295,34 @@ export function GameScreen({
     correct: number;
     incorrect: number;
   }) => {
-    const xpEarned = Math.round(
+    if (timeAttackRef.current) clearInterval(timeAttackRef.current);
+
+    let xpEarned = Math.round(
       res.correct * meta.xpPerCorrect * (1 + (level - 1) * 0.5),
     );
+
+    // Time attack bonus
+    if (timeAttackMode && timeLeft > 0) {
+      xpEarned += 20;
+      toast.success("⚡ Time Attack Bonus! +20 XP!", { duration: 2000 });
+    }
+
+    // Combo multiplier was applied per-correct — this is already in xpEarned from game logic
     const gameResult: GameResult = { ...res, level, xpEarned };
     setResult(gameResult);
     setGameState("result");
+
+    // Save score to localStorage
+    saveTopScore(gameId, level, res.score);
+
+    // Check weekly challenges
+    const completedChallenge = checkAndCompleteChallenge(gameId, res.score);
+    if (completedChallenge) {
+      toast.success(
+        `🎯 Weekly Challenge Complete: ${completedChallenge.title}! ${completedChallenge.reward}`,
+        { duration: 3000 },
+      );
+    }
 
     if (res.score >= 70) sounds.playLevelComplete();
     sounds.playXpEarned();
@@ -925,10 +1344,12 @@ export function GameScreen({
     const newLevel = Math.floor(newXpNum / 100);
     if (newLevel > prevLevel) {
       setLevelUpValue(newLevel);
+      setLevelUpXp(xpEarned);
       setTimeout(() => setShowLevelUp(true), 600);
     }
 
     // Badge checking
+    const prevBadgeCount = profile.badges.length;
     const newBadges = [...profile.badges];
     const addBadge = (id: string) => {
       if (!newBadges.includes(id)) newBadges.push(id);
@@ -946,8 +1367,9 @@ export function GameScreen({
     if (newXpNum >= 1500) addBadge("theme_collector");
     if (Number(profile.streakDays) >= 7) addBadge("week_warrior");
     if (gameId.startsWith("boss-") && res.score >= 60) addBadge("boss_slayer");
+    if (timeAttackMode && res.score >= 50) addBadge("time_attack");
+    if (comboCount >= 5) addBadge("combo_king");
 
-    // Explorer badge: playing game 2 grades above
     const gameGradeMap: Record<string, number> = {
       "number-race": 1,
       "number-catcher": 1,
@@ -983,12 +1405,16 @@ export function GameScreen({
     const gameMinGrade = gameGradeMap[gameId];
     if (gameMinGrade && profile.grade + 2 <= gameMinGrade) addBadge("explorer");
 
-    // Drill sergeant badge
     const drillsDone = Number.parseInt(
       localStorage.getItem("mm_drills_done") || "0",
       10,
     );
     if (drillsDone >= 3) addBadge("drill_sergeant");
+
+    // Confetti on new badge
+    if (newBadges.length > prevBadgeCount) {
+      setTimeout(() => setShowConfetti(true), 800);
+    }
 
     const updatedProfile = { ...profile, xp: newXp, badges: newBadges };
     onProfileUpdate(updatedProfile);
@@ -1011,14 +1437,30 @@ export function GameScreen({
   const handleNextLevel = () => {
     setLevel((l) => Math.min(l + 1, 3));
     setResult(null);
+    setMistakes([]);
+    setComboCount(0);
     setGameState("playing");
   };
   const handleRetry = () => {
     setResult(null);
+    setMistakes([]);
+    setComboCount(0);
     setGameState("playing");
   };
   const handleLevelSelect = (lvl: number) => {
     setLevel(lvl);
+    setMistakes([]);
+    setComboCount(0);
+    // Show story if not yet shown this session
+    if (!hasStoryBeenShown(gameId) && SHINCHEN_STORIES[gameId]) {
+      setGameState("story");
+    } else {
+      setGameState("playing");
+    }
+  };
+
+  const handleStoryStart = () => {
+    markStoryShown(gameId);
     setGameState("playing");
   };
 
@@ -1026,8 +1468,9 @@ export function GameScreen({
     level,
     onComplete: handleGameComplete,
     onBack: () => setGameState("level-select"),
-    onCorrect: sounds.playCorrect,
-    onWrong: sounds.playWrong,
+    onCorrect: handleCorrect,
+    onWrong: handleWrong,
+    hintActive,
   };
 
   const renderGame = () => {
@@ -1112,7 +1555,19 @@ export function GameScreen({
       <LevelUpOverlay
         show={showLevelUp}
         newLevel={levelUpValue}
+        xpEarned={levelUpXp}
         onDone={() => setShowLevelUp(false)}
+      />
+
+      <ConfettiBurst
+        show={showConfetti}
+        onDone={() => setShowConfetti(false)}
+      />
+
+      <ComboOverlay
+        show={showCombo}
+        combo={comboCount}
+        onDone={() => setShowCombo(false)}
       />
 
       <div className="min-h-screen flex flex-col">
@@ -1120,9 +1575,15 @@ export function GameScreen({
           <LevelSelectCard
             gameId={gameId}
             meta={meta}
+            timeAttackMode={timeAttackMode}
             onSelect={handleLevelSelect}
             onBack={onBack}
+            onToggleTimeAttack={() => setTimeAttackMode((t) => !t)}
           />
+        )}
+
+        {gameState === "story" && (
+          <StoryIntro gameId={gameId} onStart={handleStoryStart} />
         )}
 
         {gameState === "playing" && (
@@ -1133,6 +1594,7 @@ export function GameScreen({
                 onClick={() => setGameState("level-select")}
                 className="text-muted-foreground hover:text-foreground text-sm"
                 aria-label="Back to level select"
+                data-ocid="game.back_to_select.button"
               >
                 ←
               </button>
@@ -1143,17 +1605,99 @@ export function GameScreen({
                 </div>
                 <div className="text-muted-foreground text-xs">
                   Level {level}
+                  {comboCount >= 2 && (
+                    <span
+                      className="ml-2 font-bold"
+                      style={{ color: "oklch(0.82 0.18 50)" }}
+                    >
+                      🔥 {comboCount}x
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Time attack countdown */}
+              {timeAttackMode && (
+                <div
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-display font-bold text-sm"
+                  style={{
+                    background:
+                      timeLeft <= 10
+                        ? "oklch(0.65 0.22 25 / 0.2)"
+                        : "oklch(0.2 0.06 50 / 0.5)",
+                    border:
+                      timeLeft <= 10
+                        ? "1px solid oklch(0.65 0.22 25 / 0.6)"
+                        : "1px solid oklch(0.82 0.18 50 / 0.5)",
+                    color:
+                      timeLeft <= 10
+                        ? "oklch(0.72 0.22 25)"
+                        : "oklch(0.9 0.18 50)",
+                  }}
+                  data-ocid="game.time_attack.countdown"
+                >
+                  <span>⏱</span>
+                  <span>{timeLeft}s</span>
+                </div>
+              )}
+
+              {/* Hint button */}
+              <button
+                type="button"
+                onClick={handleHintPress}
+                className="text-sm px-2.5 py-1.5 rounded-xl font-semibold transition-all hover:scale-105"
+                style={
+                  hintActive
+                    ? {
+                        background: "oklch(0.2 0.06 195 / 0.8)",
+                        border: "1px solid oklch(0.78 0.2 195 / 0.7)",
+                        color: "oklch(0.85 0.18 195)",
+                        boxShadow: "0 0 12px oklch(0.78 0.2 195 / 0.4)",
+                      }
+                    : {
+                        background: "oklch(0.12 0.02 265)",
+                        border: "1px solid oklch(0.3 0.06 270 / 0.5)",
+                        color: "oklch(0.6 0.04 270)",
+                      }
+                }
+                aria-label="Get hint"
+                data-ocid="game.hint.button"
+              >
+                💡
+              </button>
+
               <button
                 type="button"
                 onClick={toggleSound}
                 className="text-xl opacity-60 hover:opacity-100 transition-opacity"
                 aria-label={soundEnabled ? "Mute sounds" : "Enable sounds"}
+                data-ocid="game.sound.toggle"
               >
                 {soundEnabled ? "🔊" : "🔇"}
               </button>
             </div>
+
+            {/* Time attack bar */}
+            {timeAttackMode && (
+              <div className="px-4 pb-2">
+                <div
+                  className="w-full h-2 rounded-full overflow-hidden"
+                  style={{ background: "oklch(0.15 0.03 265)" }}
+                >
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{
+                      background:
+                        timeLeft <= 10
+                          ? "linear-gradient(90deg, oklch(0.65 0.22 25), oklch(0.72 0.22 25))"
+                          : "linear-gradient(90deg, oklch(0.82 0.18 50), oklch(0.78 0.2 195))",
+                    }}
+                    animate={{ width: `${(timeLeft / 30) * 100}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+              </div>
+            )}
 
             <AnimatePresence mode="wait">
               <motion.div
@@ -1173,6 +1717,7 @@ export function GameScreen({
           <ResultCard
             result={result}
             gameName={meta.name}
+            mistakes={mistakes}
             onNextLevel={handleNextLevel}
             onRetry={handleRetry}
             onBack={onBack}

@@ -1,7 +1,12 @@
 import { motion } from "motion/react";
+import { useState } from "react";
 import type { Screen } from "../App";
 import type { PlayerProfile } from "../backend.d";
 import { SHINCHEN_DAILY_CHALLENGES } from "../data/shinchen";
+import {
+  getCompletedChallengeIds,
+  getWeeklyChallenges,
+} from "../data/weeklyChallenge";
 
 interface HomeScreenProps {
   profile: PlayerProfile;
@@ -34,15 +39,101 @@ const UTILITY_ITEMS: Array<{
   },
 ];
 
+// 30+ personalized daily messages
+const DAILY_MESSAGES: string[] = [
+  "Hey {name}! Grade {grade} math is your next adventure — let's conquer it today! 🚀",
+  "Good day, {name}! Your streak is precious — protect it with at least one game! 🔥",
+  "Psst, {name}! I've got new hints for Grade {grade} topics ready just for you! 🌟",
+  "{name}, the math universe is waiting! Your Grade {grade} skills are getting stronger! ⚡",
+  "Welcome back, {name}! A quick practice session keeps the brain sharp! 🧠",
+  "Hey {name}! Did you know Grade {grade} math shows up in real life every day? Let's train! 🎯",
+  "{name}, you're so close to leveling up! One more game and you'll feel the power! 💫",
+  "Rise and calculate, {name}! Grade {grade} challenges await your brilliant mind! 🌌",
+  "{name}, I believe in you today! Go show those numbers who's boss! 💪",
+  "Another day, another chance to become a Grade {grade} legend, {name}! 🏆",
+  "Hey {name}! Even 5 minutes of math practice compounds into greatness! ✨",
+  "{name}, your dedication to Grade {grade} math is inspiring! Keep it going! 🌠",
+  "The numbers are restless today, {name}! Only a true Grade {grade} hero can calm them! 🎮",
+  "Bright mind alert! {name} is about to do great math things today! 🔮",
+  "{name}, every problem you solve today is a step toward math mastery! 📚",
+  "Hey there, {name}! Grade {grade} math mysteries await your discovery! 🔍",
+  "Your brain is a muscle, {name}! Let's flex it with some Grade {grade} challenges! 💥",
+  "{name}, I analyzed your patterns — you're actually incredible at this! Don't stop now! 📊",
+  "Today is YOUR day, {name}! Grade {grade} math bows before your power! 👑",
+  "Hello, future math champion {name}! Ready to claim your XP today? ⭐",
+  "{name}, I've prepared special challenges tuned just for Grade {grade}! Let's go! 🎯",
+  "The scoreboard is calling your name, {name}! Show the leaderboard who's best! 🏅",
+  "Math is a superpower, {name}! Grade {grade} unlocks new abilities every session! ⚡",
+  "Hey {name}! Consistent practice = unstoppable results. Today's session matters! 🔥",
+  "{name}, I'm excited to help you tackle Grade {grade} together today! Let's roll! 🚀",
+  "Numbers don't stand a chance against you, {name}! Grade {grade} champion incoming! 🌟",
+  "Each equation you solve, {name}, makes you 1% smarter. Let's compound that! 📈",
+  "Hey {name}! The bosses are waiting. Level {grade} math won't know what hit it! 👾",
+  "Good vibes and great math, {name}! Your Grade {grade} journey continues now! ✨",
+  "{name}, remember: every expert was once a beginner. You're doing amazing! 🌈",
+  "The math galaxies of Grade {grade} are yours to explore, {name}! Adventure awaits! 🌌",
+];
+
+function getDailyMessage(profile: PlayerProfile): string {
+  const dateStr = new Date().toDateString();
+  const key = `mm_daily_msg_${dateStr}`;
+  try {
+    let idx = localStorage.getItem(key);
+    if (idx === null) {
+      // Pick a new one for today
+      const newIdx = Math.floor(Math.random() * DAILY_MESSAGES.length);
+      localStorage.setItem(key, String(newIdx));
+      idx = String(newIdx);
+    }
+    const template =
+      DAILY_MESSAGES[Number.parseInt(idx, 10) % DAILY_MESSAGES.length];
+    return template
+      .replace(/\{name\}/g, profile.name)
+      .replace(/\{grade\}/g, String(profile.grade));
+  } catch {
+    return `Welcome back, ${profile.name}! Ready to melt some maths? 🚀`;
+  }
+}
+
+function getStreakFreezeTokens(): number {
+  try {
+    const raw = localStorage.getItem("mm_streak_freeze_tokens");
+    return raw ? Number.parseInt(raw, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function spendStreakFreezeToken() {
+  try {
+    const tokens = getStreakFreezeTokens();
+    if (tokens <= 0) return;
+    localStorage.setItem("mm_streak_freeze_tokens", String(tokens - 1));
+    localStorage.setItem("mm_streak_frozen", "true");
+  } catch {
+    /* noop */
+  }
+}
+
 export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
   const xpLevel = Math.floor(Number(profile.xp) / 100);
   const xpProgress = Number(profile.xp) % 100;
+  const [freezeTokens, setFreezeTokens] = useState(getStreakFreezeTokens);
+
+  const dailyMessage = getDailyMessage(profile);
+  const weeklyChallenges = getWeeklyChallenges();
+  const completedIds = getCompletedChallengeIds();
 
   const getTimeGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
     if (h < 17) return "Good afternoon";
     return "Good evening";
+  };
+
+  const handleUseFreezeToken = () => {
+    spendStreakFreezeToken();
+    setFreezeTokens((t) => Math.max(0, t - 1));
   };
 
   return (
@@ -75,6 +166,32 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
           </div>
         </motion.div>
       </header>
+
+      {/* Shinchen Daily Message */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="mx-6 mb-4 rounded-2xl p-4 flex items-start gap-3"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.1 0.03 280 / 0.7), oklch(0.08 0.02 265 / 0.8))",
+          border: "1px solid oklch(0.7 0.22 280 / 0.25)",
+        }}
+        data-ocid="home.shinchen_message.card"
+      >
+        <div className="text-2xl animate-pulse-glow flex-shrink-0 mt-0.5">
+          🌟
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-display text-xs font-bold text-neon-purple tracking-widest mb-1">
+            SHINCHEN'S MESSAGE
+          </div>
+          <p className="text-foreground/85 text-sm leading-relaxed">
+            {dailyMessage}
+          </p>
+        </div>
+      </motion.div>
 
       {/* Stats strip */}
       <motion.div
@@ -129,6 +246,32 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
             />
           </div>
         </div>
+
+        {/* Streak Freeze */}
+        <div className="mt-3 pt-3 border-t border-border/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🧊</span>
+            <span className="text-xs text-muted-foreground">
+              Freeze Tokens:{" "}
+              <span className="text-neon-cyan font-bold">{freezeTokens}</span>
+            </span>
+          </div>
+          {freezeTokens > 0 && (
+            <button
+              type="button"
+              onClick={handleUseFreezeToken}
+              className="text-xs px-3 py-1 rounded-lg font-semibold transition-all hover:scale-105"
+              style={{
+                background: "oklch(0.15 0.04 195 / 0.5)",
+                border: "1px solid oklch(0.78 0.2 195 / 0.4)",
+                color: "oklch(0.8 0.18 195)",
+              }}
+              data-ocid="home.streak_freeze.button"
+            >
+              Use Freeze
+            </button>
+          )}
+        </div>
       </motion.div>
 
       {/* ── HERO: Play Games CTA ───────────────────────────────── */}
@@ -148,6 +291,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
           boxShadow:
             "0 0 40px oklch(0.78 0.2 195 / 0.18), 0 0 80px oklch(0.7 0.22 280 / 0.1), inset 0 1px 0 oklch(0.78 0.2 195 / 0.15)",
         }}
+        data-ocid="home.play_games.button"
       >
         {/* Ambient glow blobs */}
         <div
@@ -215,6 +359,87 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
         />
       </motion.button>
 
+      {/* ── WEEKLY CHALLENGES ─────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.23 }}
+        className="mx-6 mb-4 rounded-2xl p-4"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.11 0.04 50 / 0.7), oklch(0.09 0.02 265 / 0.8))",
+          border: "1px solid oklch(0.82 0.18 70 / 0.3)",
+        }}
+        data-ocid="home.weekly_challenges.card"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-lg">📅</span>
+          <div
+            className="font-display text-xs font-bold tracking-widest"
+            style={{ color: "oklch(0.9 0.18 70)" }}
+          >
+            WEEKLY CHALLENGES
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          {weeklyChallenges.map((c, i) => {
+            const done = completedIds.includes(c.id);
+            return (
+              <motion.div
+                key={c.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25 + i * 0.06 }}
+                className="flex items-center gap-3 p-2.5 rounded-xl"
+                style={{
+                  background: done
+                    ? "oklch(0.72 0.22 155 / 0.1)"
+                    : "oklch(0.1 0.02 265 / 0.5)",
+                  border: done
+                    ? "1px solid oklch(0.72 0.22 155 / 0.3)"
+                    : "1px solid oklch(0.3 0.06 270 / 0.3)",
+                }}
+                data-ocid={`home.weekly_challenge.item.${i + 1}`}
+              >
+                <div className="text-lg flex-shrink-0">{c.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="font-display font-bold text-xs leading-tight"
+                    style={{
+                      color: done
+                        ? "oklch(0.72 0.22 155)"
+                        : "oklch(0.88 0.08 265)",
+                    }}
+                  >
+                    {c.title}
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    {c.description}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  {done ? (
+                    <span
+                      className="text-sm font-bold"
+                      style={{ color: "oklch(0.72 0.22 155)" }}
+                    >
+                      ✓
+                    </span>
+                  ) : (
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: "oklch(0.85 0.18 70)" }}
+                    >
+                      {c.reward}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+
       {/* ── DAILY CHALLENGE ───────────────────────────────────── */}
       <motion.button
         type="button"
@@ -231,6 +456,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
         }}
         onClick={() => onNavigate("shinchen")}
         aria-label="Daily challenge"
+        data-ocid="home.daily_challenge.button"
       >
         <div className="text-2xl flex-shrink-0 animate-pulse-glow">🌟</div>
         <div className="flex-1 min-w-0">
@@ -253,37 +479,11 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
           }}
           className="flex-shrink-0 text-xs font-semibold text-neon-purple/80 hover:text-neon-purple transition-colors whitespace-nowrap px-2 py-1 rounded-lg"
           style={{ border: "1px solid oklch(0.7 0.22 280 / 0.3)" }}
+          data-ocid="home.daily_challenge.view_button"
         >
           View →
         </button>
       </motion.button>
-
-      {/* ── SHINCHEN STRIP ────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.28 }}
-        className="mx-6 mb-5 rounded-2xl px-4 py-3 flex items-center gap-3"
-        style={{
-          background:
-            "linear-gradient(135deg, oklch(0.1 0.03 280 / 0.7), oklch(0.08 0.02 265 / 0.8))",
-          border: "1px solid oklch(0.7 0.22 280 / 0.25)",
-        }}
-      >
-        <div className="text-2xl animate-pulse-glow flex-shrink-0">🌟</div>
-        <p className="text-foreground/80 text-sm leading-snug flex-1 min-w-0">
-          {profile.streakDays > BigInt(0)
-            ? `${profile.streakDays}-day streak! Incredible dedication 🔥`
-            : `Welcome back, ${profile.name}! Ready to melt some maths? 🚀`}
-        </p>
-        <button
-          type="button"
-          onClick={() => onNavigate("shinchen")}
-          className="flex-shrink-0 text-xs text-neon-purple/70 hover:text-neon-purple transition-colors whitespace-nowrap"
-        >
-          Chat →
-        </button>
-      </motion.div>
 
       {/* ── UTILITY 3-GRID ────────────────────────────────────── */}
       <div className="flex-1 px-6 pb-8">
@@ -314,6 +514,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
                 (e.currentTarget as HTMLButtonElement).style.borderColor = "";
                 (e.currentTarget as HTMLButtonElement).style.boxShadow = "";
               }}
+              data-ocid={`home.${item.screen}.link`}
             >
               <div className="text-2xl">{item.icon}</div>
               <div className="font-display font-bold text-xs text-foreground/80 leading-tight">
