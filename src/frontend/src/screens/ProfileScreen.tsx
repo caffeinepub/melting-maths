@@ -26,6 +26,110 @@ interface ProfileScreenProps {
   onProfileUpdate: (p: PlayerProfile) => void;
   onBack: () => void;
   onTeacherView?: () => void;
+  onDeleteAccount?: () => void;
+}
+
+// --- Goodbye Screen Overlay ---
+function GoodbyeScreen({ onDone }: { onDone: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onDone();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [onDone]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
+      style={{
+        background:
+          "radial-gradient(ellipse at center, oklch(0.14 0.06 195 / 0.95) 0%, oklch(0.08 0.03 265) 60%, oklch(0.05 0.02 280) 100%)",
+      }}
+      data-ocid="account.goodbye.panel"
+    >
+      {/* Glow rings */}
+      <div
+        className="absolute w-64 h-64 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle, oklch(0.78 0.2 195 / 0.08) 0%, transparent 70%)",
+          filter: "blur(30px)",
+        }}
+      />
+      <div
+        className="absolute w-96 h-96 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle, oklch(0.72 0.28 310 / 0.06) 0%, transparent 70%)",
+          filter: "blur(50px)",
+        }}
+      />
+
+      <motion.div
+        initial={{ scale: 0.8, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        transition={{ delay: 0.15, duration: 0.6, type: "spring" }}
+        className="relative z-10 text-center px-8"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: [0, 1.3, 1] }}
+          transition={{ delay: 0.2, duration: 0.6 }}
+          className="text-7xl mb-6"
+        >
+          👋
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="font-display text-5xl font-black mb-4"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.85 0.18 195), oklch(0.78 0.25 310))",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            textShadow: "none",
+          }}
+        >
+          Goodbye!
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+          className="text-base text-muted-foreground leading-relaxed max-w-xs mx-auto"
+        >
+          Thanks for playing Melting Maths.
+          <br />
+          We hope to see you again soon!
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          transition={{ delay: 1.0, duration: 0.8, ease: "easeOut" }}
+          className="mt-8 h-0.5 w-32 mx-auto rounded-full"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, oklch(0.78 0.2 195), oklch(0.72 0.28 310), transparent)",
+          }}
+        />
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.5 }}
+          className="mt-4 text-xs text-muted-foreground/50"
+        >
+          Clearing your account…
+        </motion.p>
+      </motion.div>
+    </motion.div>
+  );
 }
 
 const ALL_BADGES: Array<{
@@ -413,6 +517,7 @@ export function ProfileScreen({
   onProfileUpdate,
   onBack,
   onTeacherView,
+  onDeleteAccount,
 }: ProfileScreenProps) {
   const resetProgress = useResetProgress();
   const createOrUpdate = useCreateOrUpdateProfile();
@@ -429,6 +534,7 @@ export function ProfileScreen({
   const [showCert, setShowCert] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const freezeTokens = getStreakFreezeTokens();
+  const [showGoodbye, setShowGoodbye] = useState(false);
 
   // Sound settings
   const [soundSettings, setSoundSettings] = useState(getSoundSettings);
@@ -588,6 +694,48 @@ export function ProfileScreen({
     }
   };
 
+  const handleDeleteAccountConfirmed = () => {
+    setShowGoodbye(true);
+  };
+
+  const handleGoodbyeDone = () => {
+    // Clear all known localStorage keys
+    const keysToRemove = [
+      "meltingmaths_profile",
+      "mm_cutscene_shown",
+      "mm_theme",
+      "mm_color_mode",
+      "mm_avatar",
+      "mm_sound_master",
+      "mm_sound_sfx",
+      "mm_sound_music",
+      "mm_streak_freeze_tokens",
+      "mm_streak_freeze_awarded",
+      "mm_games_played",
+      "mm_games_played_set",
+      "mm_game_play_counts",
+      "mm_total_correct",
+      "mm_total_questions",
+      "mm_completed_games",
+      "mm_drills_done",
+    ];
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+    // Clear grade promotion keys
+    const allKeys = Object.keys(localStorage);
+    for (const key of allKeys) {
+      if (key.startsWith("mm_grade_promoted_")) {
+        localStorage.removeItem(key);
+      }
+    }
+    // Reset theme and color mode on document
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.removeAttribute("data-color-mode");
+    // Notify parent
+    onDeleteAccount?.();
+  };
+
   const currentAvatar =
     AVATARS.find((a) => a.id === selectedAvatar) ?? AVATARS[0];
 
@@ -597,6 +745,10 @@ export function ProfileScreen({
         show={showConfetti}
         onDone={() => setShowConfetti(false)}
       />
+
+      <AnimatePresence>
+        {showGoodbye && <GoodbyeScreen onDone={handleGoodbyeDone} />}
+      </AnimatePresence>
 
       <div className="min-h-screen flex flex-col">
         <header className="px-6 pt-10 pb-4 flex items-center justify-between gap-3">
@@ -1234,6 +1386,67 @@ export function ProfileScreen({
             >
               🔒 Teacher / Parent View
             </button>
+          </motion.div>
+
+          {/* === ACCOUNT SECTION === */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.32 }}
+            className="card-neon rounded-2xl p-5"
+          >
+            <h2 className="font-display font-bold text-base text-foreground mb-1">
+              👤 Account
+            </h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              Manage your account data.
+            </p>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full p-4 rounded-xl border border-destructive/30 text-destructive/70 hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-all text-sm font-semibold text-left flex items-center gap-3"
+                  data-ocid="account.delete_button"
+                >
+                  <span className="text-xl">🗑️</span>
+                  <div>
+                    <div className="font-bold">Delete Account</div>
+                    <div className="text-xs opacity-70 font-normal">
+                      Permanently delete your account and all data. This cannot
+                      be undone.
+                    </div>
+                  </div>
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-popover border-border">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-display text-foreground">
+                    Delete Account?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-muted-foreground">
+                    Are you sure? This will permanently delete your account, all
+                    game progress, XP, badges, and settings. You will need to
+                    sign in again. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    className="bg-secondary border-border text-foreground hover:bg-muted"
+                    data-ocid="account.delete.cancel_button"
+                  >
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteAccountConfirmed}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/80"
+                    data-ocid="account.delete.confirm_button"
+                  >
+                    Yes, Delete My Account
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </motion.div>
 
           {/* === RESET / PROGRESS === */}

@@ -1,5 +1,5 @@
-import { motion } from "motion/react";
-import { useState } from "react";
+import { animate, motion, useMotionValue, useTransform } from "motion/react";
+import { useEffect, useState } from "react";
 import type { Screen } from "../App";
 import type { PlayerProfile } from "../backend.d";
 import { SHINCHEN_DAILY_CHALLENGES } from "../data/shinchen";
@@ -7,6 +7,7 @@ import {
   getCompletedChallengeIds,
   getWeeklyChallenges,
 } from "../data/weeklyChallenge";
+import { useTotalVisits } from "../hooks/useQueries";
 
 interface HomeScreenProps {
   profile: PlayerProfile;
@@ -125,6 +126,24 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
   const xpLevel = Math.floor(Number(profile.xp) / 100);
   const xpProgress = Number(profile.xp) % 100;
   const [freezeTokens, setFreezeTokens] = useState(getStreakFreezeTokens);
+  const {
+    data: totalVisitsData,
+    isError: visitsError,
+    isLoading: visitsLoading,
+  } = useTotalVisits();
+  const visitsCount = useMotionValue(0);
+  const visitsDisplay = useTransform(visitsCount, (v) =>
+    Math.round(v).toLocaleString(),
+  );
+
+  useEffect(() => {
+    if (totalVisitsData !== undefined && totalVisitsData > BigInt(0)) {
+      animate(visitsCount, Number(totalVisitsData), {
+        duration: 1.6,
+        ease: "easeOut",
+      });
+    }
+  }, [totalVisitsData, visitsCount]);
 
   const dailyMessage = getDailyMessage(profile);
   const weeklyChallenges = getWeeklyChallenges();
@@ -443,6 +462,96 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               </motion.div>
             );
           })}
+        </div>
+      </motion.div>
+
+      {/* ── TOTAL VISITS ──────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.24 }}
+        className="mx-6 mb-4 rounded-2xl p-4 flex items-center gap-4"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.11 0.04 195 / 0.7), oklch(0.09 0.02 265 / 0.8))",
+          border: "1px solid oklch(0.78 0.2 195 / 0.25)",
+          boxShadow:
+            "0 0 24px oklch(0.78 0.2 195 / 0.1), inset 0 1px 0 oklch(0.78 0.2 195 / 0.08)",
+        }}
+        data-ocid="home.total_visits.card"
+      >
+        {/* Globe icon with pulsing glow */}
+        <motion.div
+          animate={
+            (visitsLoading || totalVisitsData === undefined) && !visitsError
+              ? {
+                  opacity: [0.5, 1, 0.5],
+                  scale: [0.95, 1.05, 0.95],
+                }
+              : { opacity: 1, scale: 1 }
+          }
+          transition={
+            (visitsLoading || totalVisitsData === undefined) && !visitsError
+              ? {
+                  duration: 1.8,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }
+              : { duration: 0.3 }
+          }
+          className="text-3xl flex-shrink-0"
+          style={{
+            filter: "drop-shadow(0 0 10px oklch(0.78 0.2 195 / 0.6))",
+          }}
+        >
+          🌍
+        </motion.div>
+
+        <div className="flex-1 min-w-0">
+          <div className="font-display text-xs font-bold text-neon-cyan tracking-widest mb-0.5">
+            TOTAL VISITS
+          </div>
+          <div className="text-muted-foreground text-xs">
+            Everyone who has visited this app
+          </div>
+        </div>
+
+        {/* Count display */}
+        <div className="flex-shrink-0 text-right">
+          {visitsError ? (
+            <div
+              className="font-display text-2xl font-black"
+              style={{ color: "oklch(0.7 0.08 265)" }}
+            >
+              --
+            </div>
+          ) : visitsLoading || totalVisitsData === undefined ? (
+            <div className="flex items-center gap-1">
+              <motion.div
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.2, repeat: Number.POSITIVE_INFINITY }}
+                className="w-12 h-6 rounded-lg"
+                style={{ background: "oklch(0.78 0.2 195 / 0.15)" }}
+              />
+            </div>
+          ) : (
+            <motion.div
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+              className="font-display text-2xl font-black"
+              style={{
+                background:
+                  "linear-gradient(90deg, oklch(0.92 0.15 195) 0%, oklch(0.85 0.18 220) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                filter: "drop-shadow(0 0 8px oklch(0.78 0.2 195 / 0.5))",
+              }}
+            >
+              <motion.span>{visitsDisplay}</motion.span>
+            </motion.div>
+          )}
         </div>
       </motion.div>
 

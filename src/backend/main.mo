@@ -3,8 +3,11 @@ import List "mo:core/List";
 import Array "mo:core/Array";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
+import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+
+
 
 actor {
   type PlayerProfile = {
@@ -42,6 +45,8 @@ actor {
   let playerProfiles = Map.empty<Principal, PlayerProfile>();
   let gameSessions = Map.empty<Principal, List.List<GameSession>>();
   let unlockedLevels = Map.empty<Principal, Map.Map<Text, List.List<Nat>>>();
+
+  var visitCount = 0;
 
   // Player Profile Management
   public shared ({ caller }) func createOrUpdateProfile(name : Text, grade : Nat8) : async () {
@@ -204,5 +209,14 @@ actor {
         };
       };
     };
+  };
+
+  // Track page visits
+  public shared ({ caller }) func trackVisit() : async () {
+    visitCount += 1;
+  };
+
+  public query ({ caller }) func getTotalVisits() : async Nat {
+    visitCount;
   };
 };

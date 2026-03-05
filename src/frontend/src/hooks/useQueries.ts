@@ -110,6 +110,25 @@ export function useRecordGameSession() {
   });
 }
 
+// ─── Total Visits ─────────────────────────────────────────────────
+export function useTotalVisits() {
+  const { actor, isFetching } = useActor();
+  return useQuery<bigint>({
+    queryKey: ["totalVisits"],
+    queryFn: async () => {
+      if (!actor) return BigInt(0);
+      try {
+        await actor.trackVisit();
+        return await actor.getTotalVisits();
+      } catch {
+        return BigInt(0);
+      }
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+  });
+}
+
 // ─── Unlocked levels ─────────────────────────────────────────────
 export function useUnlockedLevels(gameId: string) {
   const { actor, isFetching } = useActor();

@@ -32,6 +32,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(LeaderboardEntry)],
       ['query'],
     ),
+  'getTotalVisits' : IDL.Func([], [IDL.Nat], ['query']),
   'getUnlockedLevels' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Nat)], ['query']),
   'recordGameSession' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
@@ -39,6 +40,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'resetProgress' : IDL.Func([], [], []),
+  'trackVisit' : IDL.Func([], [], []),
 });
 
 export const idlInitArgs = [];
@@ -68,6 +70,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(LeaderboardEntry)],
         ['query'],
       ),
+    'getTotalVisits' : IDL.Func([], [IDL.Nat], ['query']),
     'getUnlockedLevels' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Nat)], ['query']),
     'recordGameSession' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
@@ -75,6 +78,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'resetProgress' : IDL.Func([], [], []),
+    'trackVisit' : IDL.Func([], [], []),
   });
 };
 

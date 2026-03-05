@@ -26,7 +26,9 @@ export interface backendInterface {
     createOrUpdateProfile(name: string, grade: number): Promise<void>;
     getProfile(): Promise<PlayerProfile | null>;
     getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>>;
+    getTotalVisits(): Promise<bigint>;
     getUnlockedLevels(gameId: string): Promise<Array<bigint>>;
     recordGameSession(gameId: string, level: bigint, score: bigint, correctAnswers: bigint, incorrectAnswers: bigint, topicId: string): Promise<void>;
     resetProgress(): Promise<void>;
+    trackVisit(): Promise<void>;
 }

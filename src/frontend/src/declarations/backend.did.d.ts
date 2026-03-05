@@ -29,12 +29,14 @@ export interface _SERVICE {
   'createOrUpdateProfile' : ActorMethod<[string, number], undefined>,
   'getProfile' : ActorMethod<[], [] | [PlayerProfile]>,
   'getTopLeaderboardEntries' : ActorMethod<[], Array<LeaderboardEntry>>,
+  'getTotalVisits' : ActorMethod<[], bigint>,
   'getUnlockedLevels' : ActorMethod<[string], Array<bigint>>,
   'recordGameSession' : ActorMethod<
     [string, bigint, bigint, bigint, bigint, string],
     undefined
   >,
   'resetProgress' : ActorMethod<[], undefined>,
+  'trackVisit' : ActorMethod<[], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

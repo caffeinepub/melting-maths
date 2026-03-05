@@ -108,9 +108,11 @@ export interface backendInterface {
     createOrUpdateProfile(name: string, grade: number): Promise<void>;
     getProfile(): Promise<PlayerProfile | null>;
     getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>>;
+    getTotalVisits(): Promise<bigint>;
     getUnlockedLevels(gameId: string): Promise<Array<bigint>>;
     recordGameSession(gameId: string, level: bigint, score: bigint, correctAnswers: bigint, incorrectAnswers: bigint, topicId: string): Promise<void>;
     resetProgress(): Promise<void>;
+    trackVisit(): Promise<void>;
 }
 import type { PlayerProfile as _PlayerProfile } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -157,6 +159,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getTotalVisits(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTotalVisits();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTotalVisits();
+            return result;
+        }
+    }
     async getUnlockedLevels(arg0: string): Promise<Array<bigint>> {
         if (this.processError) {
             try {
@@ -196,6 +212,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.resetProgress();
+            return result;
+        }
+    }
+    async trackVisit(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.trackVisit();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.trackVisit();
             return result;
         }
     }

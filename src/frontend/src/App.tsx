@@ -409,6 +409,10 @@ function AppContent() {
             onProfileUpdate={handleProfileUpdate}
             onBack={() => setScreen("home")}
             onTeacherView={() => setScreen("teacher")}
+            onDeleteAccount={() => {
+              setLocalProfile(null);
+              setScreen("onboarding");
+            }}
           />
         )}
         {screen === "leaderboard" && profile && (
