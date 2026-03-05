@@ -37,6 +37,12 @@ const UTILITY_ITEMS: Array<{
     label: "My Profile",
     accent: "oklch(0.78 0.2 195)",
   },
+  {
+    screen: "analytics",
+    icon: "📊",
+    label: "Analytics",
+    accent: "oklch(0.72 0.22 155)",
+  },
 ];
 
 // 30+ personalized daily messages
@@ -485,9 +491,9 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
         </button>
       </motion.button>
 
-      {/* ── UTILITY 3-GRID ────────────────────────────────────── */}
+      {/* ── UTILITY 2x2 GRID ──────────────────────────────────── */}
       <div className="flex-1 px-6 pb-8">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {UTILITY_ITEMS.map((item, i) => (
             <motion.button
               key={item.screen}

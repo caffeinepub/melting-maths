@@ -12,6 +12,7 @@ import {
   useProfile,
   useRecordGameSession,
 } from "./hooks/useQueries";
+import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { GameSelectScreen } from "./screens/GameSelectScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -29,7 +30,8 @@ export type Screen =
   | "shinchen"
   | "profile"
   | "leaderboard"
-  | "teacher";
+  | "teacher"
+  | "analytics";
 
 const STORAGE_KEY = "meltingmaths_profile";
 
@@ -420,6 +422,9 @@ function AppContent() {
             profile={profile}
             onBack={() => setScreen("profile")}
           />
+        )}
+        {screen === "analytics" && profile && (
+          <AnalyticsScreen profile={profile} onBack={() => setScreen("home")} />
         )}
       </div>
 

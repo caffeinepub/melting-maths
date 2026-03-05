@@ -54,6 +54,7 @@ import { SHINCHEN_STORIES } from "../data/shinchenStories";
 import { checkAndCompleteChallenge } from "../data/weeklyChallenge";
 import { useRecordGameSession, useUnlockedLevels } from "../hooks/useQueries";
 import { useSoundEffects } from "../hooks/useSoundEffects";
+import { recordSession as recordAnalyticsSession } from "../utils/analyticsUtils";
 
 interface GameScreenProps {
   gameId: string;
@@ -1209,6 +1210,7 @@ export function GameScreen({
   const recordSession = useRecordGameSession();
   const queryClient = useQueryClient();
   const sounds = useSoundEffects(soundEnabled);
+  const sessionStartRef = useRef<number>(Date.now());
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -1334,6 +1336,16 @@ export function GameScreen({
     updateAccuracy(res.correct, res.correct + res.incorrect);
     if (res.score >= 60) markGameCompleted(gameId, level);
 
+    // Record analytics session
+    const durationMs = Date.now() - sessionStartRef.current;
+    recordAnalyticsSession(
+      gameId,
+      durationMs,
+      res.correct,
+      res.correct + res.incorrect,
+      xpEarned,
+    );
+
     // XP update
     const prevXp = Number(profile.xp);
     const newXpNum = prevXp + xpEarned;
@@ -1435,6 +1447,7 @@ export function GameScreen({
   };
 
   const handleNextLevel = () => {
+    sessionStartRef.current = Date.now();
     setLevel((l) => Math.min(l + 1, 3));
     setResult(null);
     setMistakes([]);
@@ -1442,12 +1455,14 @@ export function GameScreen({
     setGameState("playing");
   };
   const handleRetry = () => {
+    sessionStartRef.current = Date.now();
     setResult(null);
     setMistakes([]);
     setComboCount(0);
     setGameState("playing");
   };
   const handleLevelSelect = (lvl: number) => {
+    sessionStartRef.current = Date.now();
     setLevel(lvl);
     setMistakes([]);
     setComboCount(0);
