@@ -9,6 +9,14 @@
 import { IDL } from '@icp-sdk/core/candid';
 
 export const Time = IDL.Int;
+export const StudentRegistryEntry = IDL.Record({
+  'xp' : IDL.Nat,
+  'name' : IDL.Text,
+  'streakDays' : IDL.Nat,
+  'grade' : IDL.Nat8,
+  'badgeCount' : IDL.Nat,
+  'lastActive' : Time,
+});
 export const PlayerProfile = IDL.Record({
   'xp' : IDL.Nat,
   'name' : IDL.Text,
@@ -23,10 +31,20 @@ export const LeaderboardEntry = IDL.Record({
   'name' : IDL.Text,
   'grade' : IDL.Nat8,
 });
+export const PublicStats = IDL.Record({
+  'leaderboard' : IDL.Vec(LeaderboardEntry),
+  'totalVisits' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   'createOrUpdateProfile' : IDL.Func([IDL.Text, IDL.Nat8], [], []),
+  'getAllStudentProfiles' : IDL.Func(
+      [],
+      [IDL.Vec(StudentRegistryEntry)],
+      ['query'],
+    ),
   'getProfile' : IDL.Func([], [IDL.Opt(PlayerProfile)], ['query']),
+  'getPublicStats' : IDL.Func([], [PublicStats], ['query']),
   'getTopLeaderboardEntries' : IDL.Func(
       [],
       [IDL.Vec(LeaderboardEntry)],
@@ -40,6 +58,11 @@ export const idlService = IDL.Service({
       [],
     ),
   'resetProgress' : IDL.Func([], [], []),
+  'submitLeaderboardEntry' : IDL.Func(
+      [IDL.Text, IDL.Nat8, IDL.Nat, IDL.Nat, IDL.Nat],
+      [],
+      [],
+    ),
   'trackVisit' : IDL.Func([], [], []),
 });
 
@@ -47,6 +70,14 @@ export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
   const Time = IDL.Int;
+  const StudentRegistryEntry = IDL.Record({
+    'xp' : IDL.Nat,
+    'name' : IDL.Text,
+    'streakDays' : IDL.Nat,
+    'grade' : IDL.Nat8,
+    'badgeCount' : IDL.Nat,
+    'lastActive' : Time,
+  });
   const PlayerProfile = IDL.Record({
     'xp' : IDL.Nat,
     'name' : IDL.Text,
@@ -61,10 +92,20 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'grade' : IDL.Nat8,
   });
+  const PublicStats = IDL.Record({
+    'leaderboard' : IDL.Vec(LeaderboardEntry),
+    'totalVisits' : IDL.Nat,
+  });
   
   return IDL.Service({
     'createOrUpdateProfile' : IDL.Func([IDL.Text, IDL.Nat8], [], []),
+    'getAllStudentProfiles' : IDL.Func(
+        [],
+        [IDL.Vec(StudentRegistryEntry)],
+        ['query'],
+      ),
     'getProfile' : IDL.Func([], [IDL.Opt(PlayerProfile)], ['query']),
+    'getPublicStats' : IDL.Func([], [PublicStats], ['query']),
     'getTopLeaderboardEntries' : IDL.Func(
         [],
         [IDL.Vec(LeaderboardEntry)],
@@ -78,6 +119,11 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'resetProgress' : IDL.Func([], [], []),
+    'submitLeaderboardEntry' : IDL.Func(
+        [IDL.Text, IDL.Nat8, IDL.Nat, IDL.Nat, IDL.Nat],
+        [],
+        [],
+      ),
     'trackVisit' : IDL.Func([], [], []),
   });
 };

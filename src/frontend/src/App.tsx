@@ -11,7 +11,9 @@ import {
   useCreateOrUpdateProfile,
   useProfile,
   useRecordGameSession,
+  useSubmitLeaderboardEntry,
 } from "./hooks/useQueries";
+import { AdminRegistryScreen } from "./screens/AdminRegistryScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { GameSelectScreen } from "./screens/GameSelectScreen";
@@ -19,6 +21,7 @@ import { HomeScreen } from "./screens/HomeScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
+import { PublicAnalyticsScreen } from "./screens/PublicAnalyticsScreen";
 import { ShinchenScreen } from "./screens/ShinchenScreen";
 import { TeacherDashboard } from "./screens/TeacherDashboard";
 
@@ -31,7 +34,9 @@ export type Screen =
   | "profile"
   | "leaderboard"
   | "teacher"
-  | "analytics";
+  | "analytics"
+  | "public-analytics"
+  | "admin-registry";
 
 const STORAGE_KEY = "meltingmaths_profile";
 
@@ -235,6 +240,7 @@ function AppContent() {
   const { data: backendProfile, isLoading } = useProfile();
   const createOrUpdate = useCreateOrUpdateProfile();
   const _recordSession = useRecordGameSession();
+  const submitLeaderboard = useSubmitLeaderboardEntry();
 
   // Apply stored theme and color mode on startup
   useEffect(() => {
@@ -255,16 +261,12 @@ function AppContent() {
     }
   }, [backendProfile, isLoading]);
 
-  // Determine starting screen
+  // Determine starting screen - always show onboarding (name entry) on every visit
   useEffect(() => {
     if (!initialized || showCutscene) return;
-    const profile = backendProfile ?? localProfile;
-    if (!profile) {
-      setScreen("onboarding");
-    } else {
-      setScreen("home");
-    }
-  }, [initialized, backendProfile, localProfile, showCutscene]);
+    // Always show onboarding so user enters their name every visit
+    setScreen("onboarding");
+  }, [initialized, showCutscene]);
 
   // Check grade promotion when on home screen
   useEffect(() => {
@@ -281,15 +283,22 @@ function AppContent() {
   const profile = backendProfile ?? localProfile;
 
   const handleOnboardingComplete = async (name: string, grade: number) => {
-    const newProfile: PlayerProfile = {
-      name,
-      grade,
-      xp: BigInt(0),
-      streakDays: BigInt(0),
-      badges: [],
-      weakTopics: [],
-      lastPlayedEpoch: BigInt(0),
-    };
+    const existingProfile = backendProfile ?? localProfile;
+    const newProfile: PlayerProfile = existingProfile
+      ? {
+          ...existingProfile,
+          name,
+          grade,
+        }
+      : {
+          name,
+          grade,
+          xp: BigInt(0),
+          streakDays: BigInt(0),
+          badges: [],
+          weakTopics: [],
+          lastPlayedEpoch: BigInt(0),
+        };
     setLocalProfile(newProfile);
     saveCachedProfile(newProfile);
     setScreen("home");
@@ -298,11 +307,28 @@ function AppContent() {
     } catch {
       /* Backend unavailable */
     }
+    const localXp = Number(newProfile.xp ?? 0);
+    const localStreak = Number(newProfile.streakDays ?? 0);
+    const localBadges = (newProfile.badges ?? []).length;
+    submitLeaderboard.mutate({
+      name,
+      grade,
+      xp: localXp,
+      streakDays: localStreak,
+      badgeCount: localBadges,
+    });
   };
 
   const handleProfileUpdate = (updated: PlayerProfile) => {
     setLocalProfile(updated);
     saveCachedProfile(updated);
+    submitLeaderboard.mutate({
+      name: updated.name,
+      grade: updated.grade,
+      xp: Number(updated.xp ?? 0),
+      streakDays: Number(updated.streakDays ?? 0),
+      badgeCount: (updated.badges ?? []).length,
+    });
   };
 
   const handleGradePromotion = async () => {
@@ -377,7 +403,10 @@ function AppContent() {
       {showGradeBackground && <GradeBackground grade={gradeForBg} />}
       <div className="relative z-10">
         {screen === "onboarding" && (
-          <OnboardingScreen onComplete={handleOnboardingComplete} />
+          <OnboardingScreen
+            onComplete={handleOnboardingComplete}
+            isReturning={!!(backendProfile ?? localProfile)}
+          />
         )}
         {screen === "home" && profile && (
           <HomeScreen profile={profile} onNavigate={navigate} />
@@ -409,6 +438,7 @@ function AppContent() {
             onProfileUpdate={handleProfileUpdate}
             onBack={() => setScreen("home")}
             onTeacherView={() => setScreen("teacher")}
+            onAdminRegistry={() => setScreen("admin-registry")}
             onDeleteAccount={() => {
               setLocalProfile(null);
               setScreen("onboarding");
@@ -429,6 +459,12 @@ function AppContent() {
         )}
         {screen === "analytics" && profile && (
           <AnalyticsScreen profile={profile} onBack={() => setScreen("home")} />
+        )}
+        {screen === "public-analytics" && (
+          <PublicAnalyticsScreen onBack={() => setScreen("home")} />
+        )}
+        {screen === "admin-registry" && (
+          <AdminRegistryScreen onBack={() => setScreen("home")} />
         )}
       </div>
 

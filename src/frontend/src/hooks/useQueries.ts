@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LeaderboardEntry, PlayerProfile } from "../backend.d";
+import { useEffect, useRef } from "react";
+import type {
+  LeaderboardEntry,
+  PlayerProfile,
+  PublicStats,
+  StudentRegistryEntry,
+} from "../backend.d";
 import { useActor } from "./useActor";
 
 // ─── Profile ────────────────────────────────────────────────────
@@ -126,6 +132,89 @@ export function useTotalVisits() {
     },
     enabled: !!actor && !isFetching,
     staleTime: 60_000,
+  });
+}
+
+// ─── Public Stats (for Public Analytics page) ────────────────────
+export function usePublicStats() {
+  const { actor, isFetching } = useActor();
+  const hasTrackedRef = useRef(false);
+
+  // Track visit once when actor is ready
+  useEffect(() => {
+    if (actor && !isFetching && !hasTrackedRef.current) {
+      hasTrackedRef.current = true;
+      actor.trackVisit().catch(() => {});
+    }
+  }, [actor, isFetching]);
+
+  const statsQuery = useQuery<PublicStats>({
+    queryKey: ["publicStats"],
+    queryFn: async () => {
+      if (!actor) return { totalVisits: BigInt(0), leaderboard: [] };
+      try {
+        return await actor.getPublicStats();
+      } catch {
+        return { totalVisits: BigInt(0), leaderboard: [] };
+      }
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 15000,
+    staleTime: 10000,
+    refetchOnWindowFocus: true,
+  });
+
+  return { statsQuery };
+}
+
+// ─── Submit Leaderboard Entry ─────────────────────────────────────
+export function useSubmitLeaderboardEntry() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      grade,
+      xp,
+      streakDays,
+      badgeCount,
+    }: {
+      name: string;
+      grade: number;
+      xp: number;
+      streakDays: number;
+      badgeCount: number;
+    }) => {
+      if (!actor) return;
+      try {
+        await actor.submitLeaderboardEntry(
+          name,
+          grade,
+          BigInt(xp),
+          BigInt(streakDays),
+          BigInt(badgeCount),
+        );
+      } catch {
+        // swallow - non-critical
+      }
+    },
+  });
+}
+
+// ─── Student Registry (Admin) ─────────────────────────────────────
+export function useAllStudentProfiles() {
+  const { actor, isFetching } = useActor();
+  return useQuery<StudentRegistryEntry[]>({
+    queryKey: ["allStudentProfiles"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await actor.getAllStudentProfiles();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
   });
 }
 

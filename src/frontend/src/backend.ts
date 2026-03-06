@@ -94,7 +94,19 @@ export interface LeaderboardEntry {
     name: string;
     grade: number;
 }
+export interface StudentRegistryEntry {
+    xp: bigint;
+    name: string;
+    streakDays: bigint;
+    grade: number;
+    badgeCount: bigint;
+    lastActive: Time;
+}
 export type Time = bigint;
+export interface PublicStats {
+    leaderboard: Array<LeaderboardEntry>;
+    totalVisits: bigint;
+}
 export interface PlayerProfile {
     xp: bigint;
     name: string;
@@ -106,12 +118,15 @@ export interface PlayerProfile {
 }
 export interface backendInterface {
     createOrUpdateProfile(name: string, grade: number): Promise<void>;
+    getAllStudentProfiles(): Promise<Array<StudentRegistryEntry>>;
     getProfile(): Promise<PlayerProfile | null>;
+    getPublicStats(): Promise<PublicStats>;
     getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>>;
     getTotalVisits(): Promise<bigint>;
     getUnlockedLevels(gameId: string): Promise<Array<bigint>>;
     recordGameSession(gameId: string, level: bigint, score: bigint, correctAnswers: bigint, incorrectAnswers: bigint, topicId: string): Promise<void>;
     resetProgress(): Promise<void>;
+    submitLeaderboardEntry(name: string, grade: number, xp: bigint, streakDays: bigint, badgeCount: bigint): Promise<void>;
     trackVisit(): Promise<void>;
 }
 import type { PlayerProfile as _PlayerProfile } from "./declarations/backend.did.d.ts";
@@ -131,6 +146,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getAllStudentProfiles(): Promise<Array<StudentRegistryEntry>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllStudentProfiles();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllStudentProfiles();
+            return result;
+        }
+    }
     async getProfile(): Promise<PlayerProfile | null> {
         if (this.processError) {
             try {
@@ -143,6 +172,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getProfile();
             return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getPublicStats(): Promise<PublicStats> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPublicStats();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPublicStats();
+            return result;
         }
     }
     async getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>> {
@@ -212,6 +255,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.resetProgress();
+            return result;
+        }
+    }
+    async submitLeaderboardEntry(arg0: string, arg1: number, arg2: bigint, arg3: bigint, arg4: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitLeaderboardEntry(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitLeaderboardEntry(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }

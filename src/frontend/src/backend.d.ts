@@ -12,7 +12,19 @@ export interface LeaderboardEntry {
     name: string;
     grade: number;
 }
+export interface StudentRegistryEntry {
+    xp: bigint;
+    name: string;
+    streakDays: bigint;
+    grade: number;
+    badgeCount: bigint;
+    lastActive: Time;
+}
 export type Time = bigint;
+export interface PublicStats {
+    leaderboard: Array<LeaderboardEntry>;
+    totalVisits: bigint;
+}
 export interface PlayerProfile {
     xp: bigint;
     name: string;
@@ -24,11 +36,14 @@ export interface PlayerProfile {
 }
 export interface backendInterface {
     createOrUpdateProfile(name: string, grade: number): Promise<void>;
+    getAllStudentProfiles(): Promise<Array<StudentRegistryEntry>>;
     getProfile(): Promise<PlayerProfile | null>;
+    getPublicStats(): Promise<PublicStats>;
     getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>>;
     getTotalVisits(): Promise<bigint>;
     getUnlockedLevels(gameId: string): Promise<Array<bigint>>;
     recordGameSession(gameId: string, level: bigint, score: bigint, correctAnswers: bigint, incorrectAnswers: bigint, topicId: string): Promise<void>;
     resetProgress(): Promise<void>;
+    submitLeaderboardEntry(name: string, grade: number, xp: bigint, streakDays: bigint, badgeCount: bigint): Promise<void>;
     trackVisit(): Promise<void>;
 }

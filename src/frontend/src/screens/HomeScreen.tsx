@@ -19,6 +19,7 @@ const UTILITY_ITEMS: Array<{
   icon: string;
   label: string;
   accent: string;
+  wide?: boolean;
 }> = [
   {
     screen: "shinchen",
@@ -43,6 +44,19 @@ const UTILITY_ITEMS: Array<{
     icon: "📊",
     label: "Analytics",
     accent: "oklch(0.72 0.22 155)",
+  },
+  {
+    screen: "public-analytics",
+    icon: "🌍",
+    label: "Live Stats",
+    accent: "oklch(0.72 0.22 25)",
+    wide: true,
+  },
+  {
+    screen: "admin-registry",
+    icon: "🗂️",
+    label: "Admin Registry",
+    accent: "oklch(0.72 0.22 25)",
   },
 ];
 
@@ -136,9 +150,16 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
     Math.round(v).toLocaleString(),
   );
 
+  const VISITS_OFFSET = 230;
+
   useEffect(() => {
     if (totalVisitsData !== undefined && totalVisitsData > BigInt(0)) {
-      animate(visitsCount, Number(totalVisitsData), {
+      animate(visitsCount, Number(totalVisitsData) + VISITS_OFFSET, {
+        duration: 1.6,
+        ease: "easeOut",
+      });
+    } else if (totalVisitsData === BigInt(0)) {
+      animate(visitsCount, VISITS_OFFSET, {
         duration: 1.6,
         ease: "easeOut",
       });
@@ -600,7 +621,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
         </button>
       </motion.button>
 
-      {/* ── UTILITY 2x2 GRID ──────────────────────────────────── */}
+      {/* ── UTILITY GRID ──────────────────────────────────────── */}
       <div className="flex-1 px-6 pb-8">
         <div className="grid grid-cols-2 gap-3">
           {UTILITY_ITEMS.map((item, i) => (
@@ -613,9 +634,10 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               whileHover={{ scale: 1.04, y: -2 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => onNavigate(item.screen)}
-              className="card-neon rounded-2xl p-4 text-center cursor-pointer
-                flex flex-col items-center justify-center gap-2 min-h-[96px]
-                border border-border/50 transition-all duration-200"
+              className={`card-neon rounded-2xl p-4 text-center cursor-pointer
+                flex items-center justify-center gap-2
+                border border-border/50 transition-all duration-200
+                ${item.wide ? "col-span-2 min-h-[72px] flex-row" : "flex-col min-h-[96px]"}`}
               style={{
                 ["--hover-accent" as string]: item.accent,
               }}
@@ -632,9 +654,32 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               data-ocid={`home.${item.screen}.link`}
             >
               <div className="text-2xl">{item.icon}</div>
-              <div className="font-display font-bold text-xs text-foreground/80 leading-tight">
+              <div
+                className={`font-display font-bold text-xs text-foreground/80 leading-tight ${item.wide ? "flex-1 text-left" : ""}`}
+              >
                 {item.label}
               </div>
+              {item.wide && (
+                <div
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5"
+                  style={{
+                    background: "oklch(0.12 0.06 155 / 0.7)",
+                    color: "oklch(0.72 0.22 155)",
+                    border: "1px solid oklch(0.72 0.22 155 / 0.4)",
+                  }}
+                >
+                  <motion.div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "oklch(0.72 0.22 155)" }}
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{
+                      duration: 1.4,
+                      repeat: Number.POSITIVE_INFINITY,
+                    }}
+                  />
+                  LIVE
+                </div>
+              )}
             </motion.button>
           ))}
         </div>

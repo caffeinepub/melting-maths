@@ -24,10 +24,24 @@ export interface PlayerProfile {
   'lastPlayedEpoch' : Time,
   'grade' : number,
 }
+export interface PublicStats {
+  'leaderboard' : Array<LeaderboardEntry>,
+  'totalVisits' : bigint,
+}
+export interface StudentRegistryEntry {
+  'xp' : bigint,
+  'name' : string,
+  'streakDays' : bigint,
+  'grade' : number,
+  'badgeCount' : bigint,
+  'lastActive' : Time,
+}
 export type Time = bigint;
 export interface _SERVICE {
   'createOrUpdateProfile' : ActorMethod<[string, number], undefined>,
+  'getAllStudentProfiles' : ActorMethod<[], Array<StudentRegistryEntry>>,
   'getProfile' : ActorMethod<[], [] | [PlayerProfile]>,
+  'getPublicStats' : ActorMethod<[], PublicStats>,
   'getTopLeaderboardEntries' : ActorMethod<[], Array<LeaderboardEntry>>,
   'getTotalVisits' : ActorMethod<[], bigint>,
   'getUnlockedLevels' : ActorMethod<[string], Array<bigint>>,
@@ -36,6 +50,10 @@ export interface _SERVICE {
     undefined
   >,
   'resetProgress' : ActorMethod<[], undefined>,
+  'submitLeaderboardEntry' : ActorMethod<
+    [string, number, bigint, bigint, bigint],
+    undefined
+  >,
   'trackVisit' : ActorMethod<[], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

@@ -4,11 +4,13 @@ import Array "mo:core/Array";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Nat "mo:core/Nat";
+import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+import Iter "mo:core/Iter";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   type PlayerProfile = {
     name : Text;
@@ -36,19 +38,40 @@ actor {
     xp : Nat;
   };
 
+  type StudentRegistryEntry = {
+    name : Text;
+    grade : Nat8;
+    xp : Nat;
+    streakDays : Nat;
+    badgeCount : Nat;
+    lastActive : Time.Time;
+  };
+
+  type PublicStats = {
+    totalVisits : Nat;
+    leaderboard : [LeaderboardEntry];
+  };
+
   module LeaderboardEntry {
     public func compare(a : LeaderboardEntry, b : LeaderboardEntry) : Order.Order {
       Nat.compare(b.xp, a.xp);
     };
   };
 
+  module StudentRegistryEntry {
+    public func compare(a : StudentRegistryEntry, b : StudentRegistryEntry) : Order.Order {
+      Nat.compare(b.xp, a.xp);
+    };
+  };
+
   let playerProfiles = Map.empty<Principal, PlayerProfile>();
+  let publicLeaderboard = Map.empty<Text, StudentRegistryEntry>();
   let gameSessions = Map.empty<Principal, List.List<GameSession>>();
   let unlockedLevels = Map.empty<Principal, Map.Map<Text, List.List<Nat>>>();
 
   var visitCount = 0;
 
-  // Player Profile Management
+  // Player Profile Management (device-based storage)
   public shared ({ caller }) func createOrUpdateProfile(name : Text, grade : Nat8) : async () {
     let newProfile : PlayerProfile = {
       name;
@@ -83,7 +106,14 @@ actor {
   };
 
   // Game Session Recording
-  public shared ({ caller }) func recordGameSession(gameId : Text, level : Nat, score : Nat, correctAnswers : Nat, incorrectAnswers : Nat, topicId : Text) : async () {
+  public shared ({ caller }) func recordGameSession(
+    gameId : Text,
+    level : Nat,
+    score : Nat,
+    correctAnswers : Nat,
+    incorrectAnswers : Nat,
+    topicId : Text,
+  ) : async () {
     switch (playerProfiles.get(caller)) {
       case (null) { Runtime.trap("Profile does not exist") };
       case (?existingProfile) {
@@ -179,14 +209,37 @@ actor {
     };
   };
 
-  // Leaderboard
+  // Leaderboard Entry Submission (anonymous players)
+  public shared ({ caller }) func submitLeaderboardEntry(name : Text, grade : Nat8, xp : Nat, streakDays : Nat, badgeCount : Nat) : async () {
+    let newEntry : StudentRegistryEntry = {
+      name;
+      grade;
+      xp;
+      streakDays;
+      badgeCount;
+      lastActive = Time.now();
+    };
+
+    switch (publicLeaderboard.get(name)) {
+      case (null) {
+        publicLeaderboard.add(name, newEntry);
+      };
+      case (?existingEntry) {
+        if (xp > existingEntry.xp) {
+          publicLeaderboard.add(name, newEntry);
+        };
+      };
+    };
+  };
+
+  // Get Top Leaderboard Entries (public query)
   public query ({ caller }) func getTopLeaderboardEntries() : async [LeaderboardEntry] {
-    let entries = playerProfiles.values().toArray().map(
-      func(profile) {
+    let entries = publicLeaderboard.values().toArray().map(
+      func(entry) {
         {
-          name = profile.name;
-          grade = profile.grade;
-          xp = profile.xp;
+          name = entry.name;
+          grade = entry.grade;
+          xp = entry.xp;
         };
       }
     );
@@ -195,6 +248,29 @@ actor {
       sorted;
     } else {
       sorted.sliceToArray(0, 20);
+    };
+  };
+
+  // Get All Student Profiles (from public leaderboard)
+  public query ({ caller }) func getAllStudentProfiles() : async [StudentRegistryEntry] {
+    let entries = publicLeaderboard.values().toArray();
+    entries.sort();
+  };
+
+  // Get Public Stats
+  public query ({ caller }) func getPublicStats() : async PublicStats {
+    let leaderboard = publicLeaderboard.values().toArray().map(
+      func(entry) {
+        {
+          name = entry.name;
+          grade = entry.grade;
+          xp = entry.xp;
+        };
+      }
+    );
+    {
+      totalVisits = visitCount;
+      leaderboard;
     };
   };
 
@@ -216,6 +292,7 @@ actor {
     visitCount += 1;
   };
 
+  // Get Total Visits (public query)
   public query ({ caller }) func getTotalVisits() : async Nat {
     visitCount;
   };

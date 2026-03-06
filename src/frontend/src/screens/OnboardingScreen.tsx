@@ -13,15 +13,23 @@ import { NeonButton } from "../components/NeonButton";
 
 interface OnboardingScreenProps {
   onComplete: (name: string, grade: number) => void;
+  isReturning?: boolean;
 }
 
-type Step = "shinchen-intro" | "intro" | "form";
+type Step = "shinchen-intro" | "intro" | "form" | "welcome";
 
-export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const [step, setStep] = useState<Step>("shinchen-intro");
+export function OnboardingScreen({
+  onComplete,
+  isReturning = false,
+}: OnboardingScreenProps) {
+  const [step, setStep] = useState<Step>(
+    isReturning ? "form" : "shinchen-intro",
+  );
   const [name, setName] = useState("");
   const [grade, setGrade] = useState<string>("");
   const [nameError, setNameError] = useState("");
+  const [submittedName, setSubmittedName] = useState("");
+  const [submittedGrade, setSubmittedGrade] = useState(0);
 
   const handleSubmit = () => {
     if (!name.trim()) {
@@ -32,7 +40,10 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       return;
     }
     setNameError("");
-    onComplete(name.trim(), Number.parseInt(grade));
+    const parsedGrade = Number.parseInt(grade);
+    setSubmittedName(name.trim());
+    setSubmittedGrade(parsedGrade);
+    setStep("welcome");
   };
 
   return (
@@ -61,7 +72,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       />
 
       <AnimatePresence mode="wait">
-        {step === "shinchen-intro" ? (
+        {step === "shinchen-intro" && (
           <motion.div
             key="shinchen-intro"
             initial={{ opacity: 0, y: 30 }}
@@ -200,7 +211,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
               <div className="w-2 h-2 rounded-full bg-border" />
             </div>
           </motion.div>
-        ) : step === "intro" ? (
+        )}
+        {step === "intro" && (
           <motion.div
             key="intro"
             initial={{ opacity: 0, y: 30 }}
@@ -324,7 +336,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
               ← Back
             </button>
           </motion.div>
-        ) : (
+        )}
+        {step === "form" && (
           <motion.div
             key="form"
             initial={{ opacity: 0, x: 50 }}
@@ -398,6 +411,10 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
               </div>
             </div>
 
+            <p className="text-xs text-muted-foreground text-center leading-relaxed px-2">
+              🔒 Your name and grade will be saved for teacher reports.
+            </p>
+
             <NeonButton
               variant="cyan"
               size="lg"
@@ -415,6 +432,145 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             >
               ← Back
             </button>
+          </motion.div>
+        )}
+        {step === "welcome" && (
+          <motion.div
+            key="welcome"
+            initial={{ opacity: 0, scale: 0.85, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 1.05, y: -20 }}
+            transition={{ type: "spring", stiffness: 180, damping: 16 }}
+            className="flex flex-col items-center gap-6 text-center max-w-sm w-full"
+          >
+            {/* Animated welcome star */}
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{
+                delay: 0.1,
+                type: "spring",
+                stiffness: 200,
+                damping: 12,
+              }}
+              className="relative"
+            >
+              {/* Outer glow ring */}
+              <motion.div
+                className="absolute inset-0 rounded-full pointer-events-none"
+                animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
+                transition={{
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  background:
+                    "radial-gradient(circle, oklch(0.78 0.2 195 / 0.5), transparent 70%)",
+                }}
+              />
+              <motion.div
+                animate={{ y: [-5, 5, -5], rotate: [-5, 5, -5] }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
+                className="text-8xl relative z-10 drop-shadow-[0_0_40px_oklch(0.78_0.2_195/0.7)]"
+              >
+                🌟
+              </motion.div>
+            </motion.div>
+
+            {/* Welcome message */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="flex flex-col gap-2"
+            >
+              <h1
+                className="font-display font-black gradient-text-cyan-purple leading-tight"
+                style={{
+                  fontSize: "clamp(1.8rem, 9vw, 2.5rem)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Welcome back,
+              </h1>
+              <h1
+                className="font-display font-black gradient-text-game leading-tight"
+                style={{
+                  fontSize: "clamp(2rem, 10vw, 2.8rem)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {submittedName}!
+              </h1>
+            </motion.div>
+
+            {/* Shinchen welcome bubble */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="w-full rounded-2xl p-4"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.11 0.03 195 / 0.9), oklch(0.08 0.02 265 / 0.95))",
+                border: "1px solid oklch(0.78 0.2 195 / 0.4)",
+                boxShadow: "0 0 30px oklch(0.78 0.2 195 / 0.15)",
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="text-3xl animate-pulse-glow flex-shrink-0">
+                  🌟
+                </div>
+                <div>
+                  <div className="font-display font-bold text-neon-cyan text-xs tracking-widest mb-1">
+                    SHINCHEN
+                  </div>
+                  <p className="text-foreground/90 text-sm leading-relaxed">
+                    Ready to melt some maths, {submittedName}? Let's crush those
+                    numbers! 🔥
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Grade badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
+              style={{
+                background: "oklch(0.15 0.04 280 / 0.8)",
+                border: "1px solid oklch(0.7 0.22 280 / 0.4)",
+                color: "oklch(0.85 0.12 280)",
+              }}
+            >
+              <span>🎓</span>
+              <span>Grade {submittedGrade} Explorer</span>
+            </motion.div>
+
+            {/* CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.75 }}
+              className="w-full"
+            >
+              <NeonButton
+                variant="cyan"
+                size="lg"
+                fullWidth
+                onClick={() => onComplete(submittedName, submittedGrade)}
+                data-ocid="welcome.primary_button"
+              >
+                Enter the Universe! 🌌
+              </NeonButton>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

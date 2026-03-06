@@ -26,6 +26,7 @@ interface ProfileScreenProps {
   onProfileUpdate: (p: PlayerProfile) => void;
   onBack: () => void;
   onTeacherView?: () => void;
+  onAdminRegistry?: () => void;
   onDeleteAccount?: () => void;
 }
 
@@ -517,6 +518,7 @@ export function ProfileScreen({
   onProfileUpdate,
   onBack,
   onTeacherView,
+  onAdminRegistry,
   onDeleteAccount,
 }: ProfileScreenProps) {
   const resetProgress = useResetProgress();
@@ -1377,6 +1379,7 @@ export function ProfileScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
+            className="flex flex-col gap-3"
           >
             <button
               type="button"
@@ -1385,6 +1388,14 @@ export function ProfileScreen({
               data-ocid="profile.teacher_view.button"
             >
               🔒 Teacher / Parent View
+            </button>
+            <button
+              type="button"
+              onClick={onAdminRegistry}
+              className="w-full p-4 rounded-2xl border border-neon-cyan/30 text-neon-cyan/70 hover:border-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/5 transition-all text-sm font-semibold"
+              data-ocid="profile.admin_registry.button"
+            >
+              🗂️ Admin Registry
             </button>
           </motion.div>
 
