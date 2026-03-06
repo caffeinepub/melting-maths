@@ -8,6 +8,9 @@ import type {
 } from "../backend.d";
 import { useActor } from "./useActor";
 
+// Module-level flag so trackVisit() is only called once per page load
+let visitTracked = false;
+
 // ─── Profile ────────────────────────────────────────────────────
 export function useProfile() {
   const { actor, isFetching } = useActor();
@@ -124,7 +127,11 @@ export function useTotalVisits() {
     queryFn: async () => {
       if (!actor) return BigInt(0);
       try {
-        await actor.trackVisit();
+        // Only track the visit once per page load (module-level flag)
+        if (!visitTracked) {
+          await actor.trackVisit();
+          visitTracked = true;
+        }
         return await actor.getTotalVisits();
       } catch {
         return BigInt(0);
@@ -138,24 +145,24 @@ export function useTotalVisits() {
 // ─── Public Stats (for Public Analytics page) ────────────────────
 export function usePublicStats() {
   const { actor, isFetching } = useActor();
-  const hasTrackedRef = useRef(false);
-
-  // Track visit once when actor is ready
-  useEffect(() => {
-    if (actor && !isFetching && !hasTrackedRef.current) {
-      hasTrackedRef.current = true;
-      actor.trackVisit().catch(() => {});
-    }
-  }, [actor, isFetching]);
 
   const statsQuery = useQuery<PublicStats>({
     queryKey: ["publicStats"],
     queryFn: async () => {
-      if (!actor) return { totalVisits: BigInt(0), leaderboard: [] };
+      if (!actor)
+        return {
+          totalVisits: BigInt(0),
+          leaderboard: [],
+          activeUsers: BigInt(0),
+        };
       try {
         return await actor.getPublicStats();
       } catch {
-        return { totalVisits: BigInt(0), leaderboard: [] };
+        return {
+          totalVisits: BigInt(0),
+          leaderboard: [],
+          activeUsers: BigInt(0),
+        };
       }
     },
     enabled: !!actor && !isFetching,
@@ -165,6 +172,50 @@ export function usePublicStats() {
   });
 
   return { statsQuery };
+}
+
+// ─── Active Users ─────────────────────────────────────────────────
+export function useActiveUsers() {
+  const { actor, isFetching } = useActor();
+  return useQuery<bigint>({
+    queryKey: ["activeUsers"],
+    queryFn: async () => {
+      if (!actor) return BigInt(0);
+      try {
+        return await actor.getActiveUsers();
+      } catch {
+        return BigInt(0);
+      }
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 15000,
+    staleTime: 10000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+// ─── Heartbeat ────────────────────────────────────────────────────
+export function useHeartbeat(name: string) {
+  const { actor, isFetching } = useActor();
+  const nameRef = useRef(name);
+  nameRef.current = name;
+
+  useEffect(() => {
+    if (!actor || isFetching || !nameRef.current) return;
+
+    const sendHeartbeat = () => {
+      if (nameRef.current) {
+        actor.heartbeat(nameRef.current).catch(() => {});
+      }
+    };
+
+    // Send immediately
+    sendHeartbeat();
+
+    // Then every 30 seconds
+    const interval = setInterval(sendHeartbeat, 30_000);
+    return () => clearInterval(interval);
+  }, [actor, isFetching]);
 }
 
 // ─── Submit Leaderboard Entry ─────────────────────────────────────

@@ -32,12 +32,14 @@ export const LeaderboardEntry = IDL.Record({
   'grade' : IDL.Nat8,
 });
 export const PublicStats = IDL.Record({
+  'activeUsers' : IDL.Nat,
   'leaderboard' : IDL.Vec(LeaderboardEntry),
   'totalVisits' : IDL.Nat,
 });
 
 export const idlService = IDL.Service({
   'createOrUpdateProfile' : IDL.Func([IDL.Text, IDL.Nat8], [], []),
+  'getActiveUsers' : IDL.Func([], [IDL.Nat], ['query']),
   'getAllStudentProfiles' : IDL.Func(
       [],
       [IDL.Vec(StudentRegistryEntry)],
@@ -52,6 +54,7 @@ export const idlService = IDL.Service({
     ),
   'getTotalVisits' : IDL.Func([], [IDL.Nat], ['query']),
   'getUnlockedLevels' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Nat)], ['query']),
+  'heartbeat' : IDL.Func([IDL.Text], [], []),
   'recordGameSession' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
       [],
@@ -93,12 +96,14 @@ export const idlFactory = ({ IDL }) => {
     'grade' : IDL.Nat8,
   });
   const PublicStats = IDL.Record({
+    'activeUsers' : IDL.Nat,
     'leaderboard' : IDL.Vec(LeaderboardEntry),
     'totalVisits' : IDL.Nat,
   });
   
   return IDL.Service({
     'createOrUpdateProfile' : IDL.Func([IDL.Text, IDL.Nat8], [], []),
+    'getActiveUsers' : IDL.Func([], [IDL.Nat], ['query']),
     'getAllStudentProfiles' : IDL.Func(
         [],
         [IDL.Vec(StudentRegistryEntry)],
@@ -113,6 +118,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getTotalVisits' : IDL.Func([], [IDL.Nat], ['query']),
     'getUnlockedLevels' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Nat)], ['query']),
+    'heartbeat' : IDL.Func([IDL.Text], [], []),
     'recordGameSession' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
         [],

@@ -173,6 +173,8 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
 
   const isLoading = statsQuery.isLoading;
 
+  const activeUsers = Number(statsQuery.data?.activeUsers ?? BigInt(0));
+
   // Stat card definitions
   const statCards = [
     {
@@ -181,6 +183,8 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
       icon: "🌍",
       color: "oklch(0.78 0.2 195)",
       ocid: "public_analytics.visits.card",
+      wide: false,
+      isLive: false,
     },
     {
       label: "Total Players",
@@ -188,6 +192,8 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
       icon: "👥",
       color: "oklch(0.7 0.22 280)",
       ocid: "public_analytics.players.card",
+      wide: false,
+      isLive: false,
     },
     {
       label: "Total XP Earned",
@@ -195,6 +201,8 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
       icon: "⚡",
       color: "oklch(0.82 0.18 70)",
       ocid: "public_analytics.xp.card",
+      wide: false,
+      isLive: false,
     },
     {
       label: "Top Grade",
@@ -202,6 +210,17 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
       icon: "🎓",
       color: "oklch(0.72 0.22 155)",
       ocid: "public_analytics.top_grade.card",
+      wide: false,
+      isLive: false,
+    },
+    {
+      label: "Active Now",
+      value: activeUsers,
+      icon: "🟢",
+      color: "oklch(0.72 0.22 155)",
+      ocid: "public_analytics.active_users.card",
+      wide: true,
+      isLive: true,
     },
   ];
 
@@ -249,7 +268,7 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
             {statCards.map((stat) => (
               <motion.div
                 key={stat.label}
-                className="rounded-2xl p-4 flex flex-col gap-1 cursor-default transition-all duration-200"
+                className={`rounded-2xl p-4 flex flex-col gap-1 cursor-default transition-all duration-200${stat.wide ? " col-span-2" : ""}`}
                 style={{
                   background:
                     "linear-gradient(135deg, oklch(0.1 0.015 265), oklch(0.08 0.01 280))",
@@ -257,13 +276,37 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
                   boxShadow: `0 0 16px ${stat.color.replace(")", " / 0.05)")}`,
                 }}
                 whileHover={{
-                  scale: 1.03,
+                  scale: stat.wide ? 1.01 : 1.03,
                   boxShadow: `0 0 28px ${stat.color.replace(")", " / 0.3)")}`,
                   borderColor: `${stat.color.replace(")", " / 0.5)")}`,
                 }}
                 data-ocid={stat.ocid}
               >
-                <div className="text-xl">{stat.icon}</div>
+                <div
+                  className={`flex items-center gap-2${stat.wide ? " mb-1" : ""}`}
+                >
+                  <div className="text-xl">{stat.icon}</div>
+                  {stat.isLive && (
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      <motion.div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: "oklch(0.72 0.22 155)" }}
+                        animate={{ opacity: [1, 0.3, 1], scale: [1, 0.75, 1] }}
+                        transition={{
+                          duration: 1.4,
+                          repeat: Number.POSITIVE_INFINITY,
+                          ease: "easeInOut",
+                        }}
+                      />
+                      <span
+                        className="font-display text-xs font-bold tracking-widest"
+                        style={{ color: "oklch(0.72 0.22 155)" }}
+                      >
+                        LIVE
+                      </span>
+                    </div>
+                  )}
+                </div>
                 {isLoading ? (
                   <motion.div
                     className="h-7 w-20 rounded-lg"
@@ -277,7 +320,9 @@ export function PublicAnalyticsScreen({ onBack }: PublicAnalyticsScreenProps) {
                     }}
                   />
                 ) : (
-                  <div className="font-display text-2xl font-black tabular-nums">
+                  <div
+                    className={`font-display font-black tabular-nums${stat.wide ? " text-4xl" : " text-2xl"}`}
+                  >
                     <AnimatedNumber value={stat.value} color={stat.color} />
                   </div>
                 )}

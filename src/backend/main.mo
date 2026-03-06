@@ -1,14 +1,15 @@
 import Map "mo:core/Map";
+import Time "mo:core/Time";
+import Int "mo:core/Int";
 import List "mo:core/List";
 import Array "mo:core/Array";
-import Time "mo:core/Time";
 import Order "mo:core/Order";
-import Nat "mo:core/Nat";
-import Text "mo:core/Text";
-import Principal "mo:core/Principal";
-import Runtime "mo:core/Runtime";
-import Iter "mo:core/Iter";
 import Migration "migration";
+import Text "mo:core/Text";
+import Iter "mo:core/Iter";
+import Principal "mo:core/Principal";
+import Nat "mo:core/Nat";
+import VarArray "mo:core/VarArray";
 
 (with migration = Migration.run)
 actor {
@@ -50,6 +51,7 @@ actor {
   type PublicStats = {
     totalVisits : Nat;
     leaderboard : [LeaderboardEntry];
+    activeUsers : Nat;
   };
 
   module LeaderboardEntry {
@@ -58,16 +60,11 @@ actor {
     };
   };
 
-  module StudentRegistryEntry {
-    public func compare(a : StudentRegistryEntry, b : StudentRegistryEntry) : Order.Order {
-      Nat.compare(b.xp, a.xp);
-    };
-  };
-
   let playerProfiles = Map.empty<Principal, PlayerProfile>();
   let publicLeaderboard = Map.empty<Text, StudentRegistryEntry>();
   let gameSessions = Map.empty<Principal, List.List<GameSession>>();
   let unlockedLevels = Map.empty<Principal, Map.Map<Text, List.List<Nat>>>();
+  let activeUsers = Map.empty<Text, Time.Time>();
 
   var visitCount = 0;
 
@@ -91,7 +88,7 @@ actor {
 
   public shared ({ caller }) func resetProgress() : async () {
     switch (playerProfiles.get(caller)) {
-      case (null) { Runtime.trap("Profile does not exist") };
+      case (null) {};
       case (?existingProfile) {
         let resetProfile : PlayerProfile = {
           existingProfile with
@@ -115,7 +112,7 @@ actor {
     topicId : Text,
   ) : async () {
     switch (playerProfiles.get(caller)) {
-      case (null) { Runtime.trap("Profile does not exist") };
+      case (null) {};
       case (?existingProfile) {
         let newSession : GameSession = {
           gameId;
@@ -139,21 +136,15 @@ actor {
         let xpGained = if (score >= 10) { score / 10 } else { 1 };
         let newTotalXp = existingProfile.xp + xpGained;
         let newBadges = List.fromArray(existingProfile.badges);
-
-        // Check for first win badge
         if (existingProfile.badges.size() == 0) {
           newBadges.add("first_win");
         };
-
-        // Check for XP badges
         if (existingProfile.xp < 100 and newTotalXp >= 100) {
           newBadges.add("xp_100");
         };
         if (existingProfile.xp < 500 and newTotalXp >= 500) {
           newBadges.add("xp_500");
         };
-
-        // Weak Topics
         let newWeakTopics = if (incorrectAnswers > correctAnswers) {
           if (not existingProfile.weakTopics.values().contains(topicId)) {
             [topicId];
@@ -257,7 +248,21 @@ actor {
     entries.sort();
   };
 
-  // Get Public Stats
+  // Helper function to get active users count (within 60 seconds)
+  func getActiveUserCount() : Nat {
+    let currentTime = Time.now();
+    let cutoffTime = currentTime - 60_000_000_000; // 60 seconds in nanoseconds
+    var count = 0;
+    let values = activeUsers.values();
+    for (timestamp in values) {
+      if (timestamp >= cutoffTime) {
+        count += 1;
+      };
+    };
+    count;
+  };
+
+  // Public Stats with activeUser count
   public query ({ caller }) func getPublicStats() : async PublicStats {
     let leaderboard = publicLeaderboard.values().toArray().map(
       func(entry) {
@@ -268,9 +273,11 @@ actor {
         };
       }
     );
+    let activeUserCount = getActiveUserCount();
     {
       totalVisits = visitCount;
       leaderboard;
+      activeUsers = activeUserCount;
     };
   };
 
@@ -289,11 +296,24 @@ actor {
 
   // Track page visits
   public shared ({ caller }) func trackVisit() : async () {
+    // Increment visit count each time a page is visited
     visitCount += 1;
   };
 
-  // Get Total Visits (public query)
+  // Return total visits (public query)
   public query ({ caller }) func getTotalVisits() : async Nat {
     visitCount;
+  };
+
+  // Track active user heartbeat
+  public shared ({ caller }) func heartbeat(name : Text) : async () {
+    let currentTime = Time.now();
+    activeUsers.add(name, currentTime);
+  };
+
+  // Return number of active users within 60 seconds
+  public query ({ caller }) func getActiveUsers() : async Nat {
+    // Count only users with heartbeat in the last 60 seconds
+    getActiveUserCount();
   };
 };

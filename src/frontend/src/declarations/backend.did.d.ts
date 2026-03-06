@@ -25,6 +25,7 @@ export interface PlayerProfile {
   'grade' : number,
 }
 export interface PublicStats {
+  'activeUsers' : bigint,
   'leaderboard' : Array<LeaderboardEntry>,
   'totalVisits' : bigint,
 }
@@ -39,12 +40,14 @@ export interface StudentRegistryEntry {
 export type Time = bigint;
 export interface _SERVICE {
   'createOrUpdateProfile' : ActorMethod<[string, number], undefined>,
+  'getActiveUsers' : ActorMethod<[], bigint>,
   'getAllStudentProfiles' : ActorMethod<[], Array<StudentRegistryEntry>>,
   'getProfile' : ActorMethod<[], [] | [PlayerProfile]>,
   'getPublicStats' : ActorMethod<[], PublicStats>,
   'getTopLeaderboardEntries' : ActorMethod<[], Array<LeaderboardEntry>>,
   'getTotalVisits' : ActorMethod<[], bigint>,
   'getUnlockedLevels' : ActorMethod<[string], Array<bigint>>,
+  'heartbeat' : ActorMethod<[string], undefined>,
   'recordGameSession' : ActorMethod<
     [string, bigint, bigint, bigint, bigint, string],
     undefined

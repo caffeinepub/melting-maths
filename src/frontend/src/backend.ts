@@ -104,6 +104,7 @@ export interface StudentRegistryEntry {
 }
 export type Time = bigint;
 export interface PublicStats {
+    activeUsers: bigint;
     leaderboard: Array<LeaderboardEntry>;
     totalVisits: bigint;
 }
@@ -118,12 +119,14 @@ export interface PlayerProfile {
 }
 export interface backendInterface {
     createOrUpdateProfile(name: string, grade: number): Promise<void>;
+    getActiveUsers(): Promise<bigint>;
     getAllStudentProfiles(): Promise<Array<StudentRegistryEntry>>;
     getProfile(): Promise<PlayerProfile | null>;
     getPublicStats(): Promise<PublicStats>;
     getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>>;
     getTotalVisits(): Promise<bigint>;
     getUnlockedLevels(gameId: string): Promise<Array<bigint>>;
+    heartbeat(name: string): Promise<void>;
     recordGameSession(gameId: string, level: bigint, score: bigint, correctAnswers: bigint, incorrectAnswers: bigint, topicId: string): Promise<void>;
     resetProgress(): Promise<void>;
     submitLeaderboardEntry(name: string, grade: number, xp: bigint, streakDays: bigint, badgeCount: bigint): Promise<void>;
@@ -143,6 +146,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.createOrUpdateProfile(arg0, arg1);
+            return result;
+        }
+    }
+    async getActiveUsers(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getActiveUsers();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getActiveUsers();
             return result;
         }
     }
@@ -227,6 +244,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getUnlockedLevels(arg0);
+            return result;
+        }
+    }
+    async heartbeat(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.heartbeat(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.heartbeat(arg0);
             return result;
         }
     }

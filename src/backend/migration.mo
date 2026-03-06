@@ -1,8 +1,7 @@
 import Map "mo:core/Map";
-import List "mo:core/List";
-import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Time "mo:core/Time";
+import List "mo:core/List";
 
 module {
   type PlayerProfile = {
@@ -13,6 +12,16 @@ module {
     badges : [Text];
     weakTopics : [Text];
     lastPlayedEpoch : Time.Time;
+  };
+
+  type GameSession = {
+    gameId : Text;
+    level : Nat;
+    score : Nat;
+    correctAnswers : Nat;
+    incorrectAnswers : Nat;
+    topicId : Text;
+    timestamp : Time.Time;
   };
 
   type StudentRegistryEntry = {
@@ -26,38 +35,25 @@ module {
 
   type OldActor = {
     playerProfiles : Map.Map<Principal, PlayerProfile>;
+    publicLeaderboard : Map.Map<Text, StudentRegistryEntry>;
+    gameSessions : Map.Map<Principal, List.List<GameSession>>;
+    unlockedLevels : Map.Map<Principal, Map.Map<Text, List.List<Nat>>>;
     visitCount : Nat;
   };
 
   type NewActor = {
     playerProfiles : Map.Map<Principal, PlayerProfile>;
     publicLeaderboard : Map.Map<Text, StudentRegistryEntry>;
+    gameSessions : Map.Map<Principal, List.List<GameSession>>;
+    unlockedLevels : Map.Map<Principal, Map.Map<Text, List.List<Nat>>>;
+    activeUsers : Map.Map<Text, Time.Time>;
     visitCount : Nat;
   };
 
-  public func run({ playerProfiles; visitCount } : OldActor) : NewActor {
-    let publicLeaderboard = Map.fromIter<Text, StudentRegistryEntry>(
-      playerProfiles.entries().map(
-        func(_principal, profile) {
-          (
-            profile.name,
-            {
-              name = profile.name;
-              grade = profile.grade;
-              xp = profile.xp;
-              streakDays = profile.streakDays;
-              badgeCount = profile.badges.size();
-              lastActive = profile.lastPlayedEpoch;
-            },
-          );
-        }
-      )
-    );
-
+  public func run(old : OldActor) : NewActor {
     {
-      playerProfiles;
-      publicLeaderboard;
-      visitCount;
+      old with
+      activeUsers = Map.empty<Text, Time.Time>();
     };
   };
 };

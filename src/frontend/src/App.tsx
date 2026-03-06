@@ -9,6 +9,7 @@ import { GradeBackground } from "./components/GradeBackground";
 import { GradePromotion } from "./components/GradePromotion";
 import {
   useCreateOrUpdateProfile,
+  useHeartbeat,
   useProfile,
   useRecordGameSession,
   useSubmitLeaderboardEntry,
@@ -242,6 +243,10 @@ function AppContent() {
   const _recordSession = useRecordGameSession();
   const submitLeaderboard = useSubmitLeaderboardEntry();
 
+  // Send heartbeat every 30s so active-user count stays accurate
+  const profile = backendProfile ?? localProfile;
+  useHeartbeat(profile?.name ?? "");
+
   // Apply stored theme and color mode on startup
   useEffect(() => {
     applyStoredTheme();
@@ -279,8 +284,6 @@ function AppContent() {
       setTimeout(() => setShowGradePromotion(true), 1000);
     }
   }, [screen, backendProfile, localProfile]);
-
-  const profile = backendProfile ?? localProfile;
 
   const handleOnboardingComplete = async (name: string, grade: number) => {
     const existingProfile = backendProfile ?? localProfile;

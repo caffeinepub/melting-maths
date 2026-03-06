@@ -7,7 +7,7 @@ import {
   getCompletedChallengeIds,
   getWeeklyChallenges,
 } from "../data/weeklyChallenge";
-import { useTotalVisits } from "../hooks/useQueries";
+import { useActiveUsers, useTotalVisits } from "../hooks/useQueries";
 
 interface HomeScreenProps {
   profile: PlayerProfile;
@@ -145,6 +145,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
     isError: visitsError,
     isLoading: visitsLoading,
   } = useTotalVisits();
+  const { data: activeUsersData } = useActiveUsers();
   const visitsCount = useMotionValue(0);
   const visitsDisplay = useTransform(visitsCount, (v) =>
     Math.round(v).toLocaleString(),
@@ -574,6 +575,43 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
             </motion.div>
           )}
         </div>
+      </motion.div>
+
+      {/* ── ACTIVE USERS PILL ─────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.245 }}
+        className="mx-6 mb-4 rounded-2xl px-4 py-2.5 flex items-center gap-3"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.09 0.04 155 / 0.6), oklch(0.08 0.02 180 / 0.7))",
+          border: "1px solid oklch(0.72 0.22 155 / 0.3)",
+          boxShadow: "0 0 16px oklch(0.72 0.22 155 / 0.08)",
+        }}
+        data-ocid="home.active_users.card"
+      >
+        {/* Pulsing green dot */}
+        <motion.div
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ background: "oklch(0.72 0.22 155)" }}
+          animate={{ opacity: [1, 0.3, 1], scale: [1, 0.75, 1] }}
+          transition={{
+            duration: 1.6,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+          }}
+        />
+        <span
+          className="font-display text-xs font-bold tracking-wide"
+          style={{ color: "oklch(0.72 0.22 155)" }}
+        >
+          {activeUsersData !== undefined
+            ? `${Number(activeUsersData)} online now`
+            : "-- online now"}
+        </span>
+        <div className="flex-1" />
+        <span className="text-muted-foreground text-xs">active users</span>
       </motion.div>
 
       {/* ── DAILY CHALLENGE ───────────────────────────────────── */}
