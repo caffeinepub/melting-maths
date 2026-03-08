@@ -142,21 +142,22 @@ const QUESTION_BANK: Question[] = [
 const DUNGEON_TIME = 30; // seconds per question
 
 function getDailyQuestions(dateStr: string): Question[] {
-  // Use date string as a simple seed
+  // Seeded shuffle
   let seed = 0;
   for (let i = 0; i < dateStr.length; i++) {
-    seed = (seed * 31 + dateStr.charCodeAt(i)) % 997;
+    seed = (seed * 31 + dateStr.charCodeAt(i)) % 2147483647;
   }
-  // Pick 10 questions deterministically
-  const indices: number[] = [];
-  let current = seed;
-  while (indices.length < 10) {
-    current = (current * 1664525 + 1013904223) % QUESTION_BANK.length;
-    if (!indices.includes(current)) {
-      indices.push(current);
-    }
+  const rng = () => {
+    seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  // Shuffle indices
+  const indices = Array.from({ length: QUESTION_BANK.length }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
   }
-  return indices.map((i) => QUESTION_BANK[i]);
+  return indices.slice(0, 10).map((i) => QUESTION_BANK[i]);
 }
 
 function hasCompletedToday(): boolean {

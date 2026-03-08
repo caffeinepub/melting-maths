@@ -116,19 +116,6 @@ function getPlayerTitle(profile: PlayerProfile): string {
   return "Apprentice";
 }
 
-function saveProfileChanges(
-  profile: PlayerProfile,
-  xpGain: number,
-  badgeId?: string,
-): PlayerProfile {
-  const newXp = profile.xp + BigInt(xpGain);
-  const newBadges =
-    badgeId && !profile.badges.includes(badgeId)
-      ? [...profile.badges, badgeId]
-      : profile.badges;
-  return { ...profile, xp: newXp, badges: newBadges };
-}
-
 export function TournamentScreen({
   profile,
   onProfileUpdate,
@@ -184,20 +171,18 @@ export function TournamentScreen({
   };
 
   const handleRoundComplete = () => {
-    // Award 50 XP per round
-    const updatedProfile = saveProfileChanges(profile, 50);
-    onProfileUpdate(updatedProfile);
-
     if (currentRound + 1 >= ROUND_QUESTIONS.length) {
-      // All rounds done — award champion badge
-      const championProfile = saveProfileChanges(
-        updatedProfile,
-        0,
-        "tournament_champ",
-      );
-      onProfileUpdate(championProfile);
+      // Final round: award 50 XP + champion badge in one update
+      const newXp = profile.xp + BigInt(50);
+      const newBadges = profile.badges.includes("tournament_champ")
+        ? profile.badges
+        : [...profile.badges, "tournament_champ"];
+      onProfileUpdate({ ...profile, xp: newXp, badges: newBadges });
       setPhase("champion");
     } else {
+      // Not final: just award 50 XP
+      const newXp = profile.xp + BigInt(50);
+      onProfileUpdate({ ...profile, xp: newXp });
       setCurrentRound((r) => r + 1);
       setPhase("intro");
     }

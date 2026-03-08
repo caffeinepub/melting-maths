@@ -669,34 +669,30 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
           boxShadow:
             "0 0 20px oklch(0.7 0.22 280 / 0.12), 0 0 40px oklch(0.78 0.2 195 / 0.08)",
         }}
-        onClick={() => onNavigate("shinchen")}
-        aria-label="Daily challenge"
+        onClick={() => onNavigate("daily-dungeon")}
+        aria-label="Daily dungeon"
         data-ocid="home.daily_challenge.button"
       >
-        <div className="text-2xl flex-shrink-0 animate-pulse-glow">🌟</div>
+        <div className="text-2xl flex-shrink-0 animate-pulse-glow">🏰</div>
         <div className="flex-1 min-w-0">
           <div className="font-display text-xs font-bold text-neon-purple tracking-widest mb-0.5">
-            DAILY CHALLENGE
+            DAILY DUNGEON
           </div>
           <p className="text-foreground/80 text-xs leading-snug line-clamp-2">
-            {
-              SHINCHEN_DAILY_CHALLENGES[
-                new Date().getDate() % SHINCHEN_DAILY_CHALLENGES.length
-              ]
-            }
+            10 timed questions — reset every day. Beat the dungeon for bonus XP!
           </p>
         </div>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onNavigate("shinchen");
+            onNavigate("daily-dungeon");
           }}
           className="flex-shrink-0 text-xs font-semibold text-neon-purple/80 hover:text-neon-purple transition-colors whitespace-nowrap px-2 py-1 rounded-lg"
           style={{ border: "1px solid oklch(0.7 0.22 280 / 0.3)" }}
           data-ocid="home.daily_challenge.view_button"
         >
-          View →
+          Enter →
         </button>
       </motion.button>
 
