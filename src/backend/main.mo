@@ -2,16 +2,16 @@ import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
 import List "mo:core/List";
-import Array "mo:core/Array";
 import Order "mo:core/Order";
-import Migration "migration";
+import Array "mo:core/Array";
 import Text "mo:core/Text";
-import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
+import Iter "mo:core/Iter";
 import Nat "mo:core/Nat";
-import VarArray "mo:core/VarArray";
 
-(with migration = Migration.run)
+
+
+
 actor {
   type PlayerProfile = {
     name : Text;
@@ -54,6 +54,14 @@ actor {
     activeUsers : Nat;
   };
 
+  type ClassGroup = {
+    id : Text;
+    name : Text;
+    joinCode : Text;
+    createdAt : Time.Time;
+    memberNames : [Text];
+  };
+
   module LeaderboardEntry {
     public func compare(a : LeaderboardEntry, b : LeaderboardEntry) : Order.Order {
       Nat.compare(b.xp, a.xp);
@@ -65,6 +73,7 @@ actor {
   let gameSessions = Map.empty<Principal, List.List<GameSession>>();
   let unlockedLevels = Map.empty<Principal, Map.Map<Text, List.List<Nat>>>();
   let activeUsers = Map.empty<Text, Time.Time>();
+  let classGroups = Map.empty<Text, ClassGroup>();
 
   var visitCount = 0;
 
@@ -201,7 +210,13 @@ actor {
   };
 
   // Leaderboard Entry Submission (anonymous players)
-  public shared ({ caller }) func submitLeaderboardEntry(name : Text, grade : Nat8, xp : Nat, streakDays : Nat, badgeCount : Nat) : async () {
+  public shared ({ caller }) func submitLeaderboardEntry(
+    name : Text,
+    grade : Nat8,
+    xp : Nat,
+    streakDays : Nat,
+    badgeCount : Nat,
+  ) : async () {
     let newEntry : StudentRegistryEntry = {
       name;
       grade;
@@ -315,5 +330,85 @@ actor {
   public query ({ caller }) func getActiveUsers() : async Nat {
     // Count only users with heartbeat in the last 60 seconds
     getActiveUserCount();
+  };
+
+  // ------------- New Class Group System Methods -------------
+
+  // Create a new class group
+  public shared ({ caller }) func createClass(name : Text, joinCode : Text) : async Text {
+    let classId = joinCode; // Using joinCode as classId for simplicity
+    let newClass : ClassGroup = {
+      id = classId;
+      name;
+      joinCode;
+      createdAt = Time.now();
+      memberNames = [];
+    };
+    classGroups.add(classId, newClass);
+    classId;
+  };
+
+  // Student joins a class
+  public shared ({ caller }) func joinClass(joinCode : Text, studentName : Text) : async Bool {
+    switch (classGroups.get(joinCode)) {
+      case (null) { false };
+      case (?existingClass) {
+        if (not existingClass.memberNames.find(func(member) { member == studentName }).isNull()) {
+          return false; // Student already in class
+        };
+        let updatedMembers = [studentName].concat(existingClass.memberNames);
+        let updatedClass : ClassGroup = {
+          existingClass with
+          memberNames = updatedMembers;
+        };
+        classGroups.add(joinCode, updatedClass);
+        true;
+      };
+    };
+  };
+
+  // Get all class groups
+  public query ({ caller }) func getAllClasses() : async [ClassGroup] {
+    classGroups.values().toArray();
+  };
+
+  // Get class by join code
+  public query ({ caller }) func getClassByCode(joinCode : Text) : async ?ClassGroup {
+    classGroups.get(joinCode);
+  };
+
+  // Remove student from class (admin use)
+  public shared ({ caller }) func removeStudentFromClass(joinCode : Text, studentName : Text) : async () {
+    switch (classGroups.get(joinCode)) {
+      case (null) {};
+      case (?existingClass) {
+        let filteredMembers = existingClass.memberNames.filter(
+          func(member) { member != studentName }
+        );
+        let updatedClass : ClassGroup = {
+          existingClass with
+          memberNames = filteredMembers;
+        };
+        classGroups.add(joinCode, updatedClass);
+      };
+    };
+  };
+
+  // ------- New Weekly Hall of Fame Method -----------
+
+  public query ({ caller }) func getWeeklyTopPlayers() : async [StudentRegistryEntry] {
+    let currentTime = Time.now();
+    let oneWeekNanos : Time.Time = 7 * 24 * 60 * 60 * 1000000000;
+
+    let filteredEntries = publicLeaderboard.values().toArray().filter(
+      func(entry) { currentTime - entry.lastActive <= oneWeekNanos }
+    );
+
+    let sortedEntries = filteredEntries.sort();
+    if (sortedEntries.size() <= 3) {
+      sortedEntries;
+    } else {
+      sortedEntries.sliceToArray(0, 3);
+    };
   };
 };

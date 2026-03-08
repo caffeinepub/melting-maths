@@ -1,7 +1,26 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
-import type { StudentRegistryEntry } from "../backend.d";
-import { useAllStudentProfiles } from "../hooks/useQueries";
+import { toast } from "sonner";
+import type { ClassGroup, StudentRegistryEntry } from "../backend.d";
+import {
+  useAllStudentProfiles,
+  useCreateClass,
+  useGetAllClasses,
+  useRemoveStudentFromClass,
+} from "../hooks/useQueries";
 
 interface AdminRegistryScreenProps {
   onBack: () => void;
@@ -74,6 +93,14 @@ function getGradeColor(grade: number): {
 }
 
 type SortKey = "xp" | "name" | "grade" | "streak" | "badges";
+
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+function isStudentInactive(s: StudentRegistryEntry): boolean {
+  const lastActiveMs = Number(s.lastActive) / 1_000_000;
+  if (Number(s.lastActive) === 0) return true;
+  return Date.now() - lastActiveMs > THREE_DAYS_MS;
+}
 
 // ─── PIN Gate ─────────────────────────────────────────────────────
 function PinGate({ onUnlock }: { onUnlock: () => void }) {
@@ -226,6 +253,379 @@ function SkeletonRow({ index }: { index: number }) {
   );
 }
 
+// ─── Create Class Modal ────────────────────────────────────────────
+function CreateClassModal({ onCreated }: { onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [className, setClassName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const createClass = useCreateClass();
+
+  const handleCreate = async () => {
+    if (!className.trim() || !joinCode.trim()) return;
+    try {
+      await createClass.mutateAsync({
+        name: className.trim(),
+        joinCode: joinCode.trim().toUpperCase(),
+      });
+      toast.success(`Class "${className}" created!`);
+      setClassName("");
+      setJoinCode("");
+      setOpen(false);
+      onCreated();
+    } catch {
+      toast.error("Failed to create class");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          className="btn-neon-cyan text-sm font-bold"
+          data-ocid="admin_registry.create_class.open_modal_button"
+        >
+          + Create Class
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className="rounded-2xl border-border/60"
+        style={{
+          background: "oklch(0.1 0.03 265)",
+          borderColor: "oklch(0.78 0.2 195 / 0.3)",
+        }}
+        data-ocid="admin_registry.create_class.dialog"
+      >
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl font-black text-glow-cyan">
+            Create Class Group
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-2">
+          <div>
+            <Label className="text-foreground/80 mb-2 block font-semibold text-sm">
+              Class Name
+            </Label>
+            <Input
+              placeholder="e.g. Grade 5 Maths – Section A"
+              value={className}
+              onChange={(e) => setClassName(e.target.value)}
+              className="bg-secondary border-border focus:border-neon-cyan h-11 rounded-xl"
+              data-ocid="admin_registry.class_name.input"
+            />
+          </div>
+          <div>
+            <Label className="text-foreground/80 mb-2 block font-semibold text-sm">
+              Join Code
+            </Label>
+            <Input
+              placeholder="e.g. MATH5A"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              className="bg-secondary border-border focus:border-neon-cyan h-11 rounded-xl uppercase tracking-widest"
+              maxLength={12}
+              data-ocid="admin_registry.join_code.input"
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Students will use this code to join your class
+            </p>
+          </div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            className="text-muted-foreground"
+            data-ocid="admin_registry.create_class.cancel_button"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreate}
+            disabled={
+              !className.trim() || !joinCode.trim() || createClass.isPending
+            }
+            className="btn-neon-cyan font-bold"
+            data-ocid="admin_registry.create_class.confirm_button"
+          >
+            {createClass.isPending ? "Creating…" : "Create Class"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Class Card ────────────────────────────────────────────────────
+function ClassCard({
+  classGroup,
+  index,
+}: { classGroup: ClassGroup; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const removeStudent = useRemoveStudentFromClass();
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(classGroup.joinCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const handleRemoveStudent = async (studentName: string) => {
+    try {
+      await removeStudent.mutateAsync({
+        joinCode: classGroup.joinCode,
+        studentName,
+      });
+      toast.success(`${studentName} removed from class`);
+    } catch {
+      toast.error("Failed to remove student");
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.1 0.03 265 / 0.8), oklch(0.08 0.02 265 / 0.9))",
+        border: "1px solid oklch(0.78 0.2 195 / 0.2)",
+      }}
+      data-ocid={`admin_registry.class.card.${index + 1}`}
+    >
+      {/* Card header */}
+      <div className="flex items-start gap-3 p-4">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+          style={{
+            background: "oklch(0.15 0.06 195 / 0.5)",
+            border: "1px solid oklch(0.78 0.2 195 / 0.3)",
+          }}
+        >
+          🏫
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-display font-black text-base text-foreground truncate">
+            {classGroup.name}
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {/* Join code pill */}
+            <button
+              type="button"
+              onClick={handleCopyCode}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all hover:scale-105"
+              style={{
+                background: "oklch(0.15 0.04 195 / 0.5)",
+                border: "1px solid oklch(0.78 0.2 195 / 0.4)",
+                color: "oklch(0.85 0.18 195)",
+              }}
+              data-ocid={`admin_registry.class.copy_code.button.${index + 1}`}
+            >
+              {copied ? "✓ Copied!" : `📋 ${classGroup.joinCode}`}
+            </button>
+            {/* Member count */}
+            <Badge
+              variant="outline"
+              className="text-xs border-border/40 text-muted-foreground"
+            >
+              👥 {classGroup.memberNames.length}{" "}
+              {classGroup.memberNames.length === 1 ? "student" : "students"}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Expand toggle */}
+        {classGroup.memberNames.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
+            style={{
+              background: "oklch(0.15 0.03 265)",
+              border: "1px solid oklch(0.25 0.04 270 / 0.4)",
+            }}
+            data-ocid={`admin_registry.class.expand.toggle.${index + 1}`}
+          >
+            <motion.span
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-xs"
+            >
+              ▼
+            </motion.span>
+          </button>
+        )}
+      </div>
+
+      {/* Member list */}
+      <AnimatePresence>
+        {expanded && classGroup.memberNames.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div
+              className="px-4 pb-4 flex flex-col gap-1.5"
+              style={{ borderTop: "1px solid oklch(0.2 0.04 270 / 0.3)" }}
+            >
+              <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pt-3 mb-1">
+                Members ({classGroup.memberNames.length})
+              </div>
+              {classGroup.memberNames.map((name, mIdx) => (
+                <div
+                  key={name}
+                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl"
+                  style={{
+                    background: "oklch(0.12 0.02 265 / 0.5)",
+                    border: "1px solid oklch(0.22 0.04 270 / 0.3)",
+                  }}
+                  data-ocid={`admin_registry.class.member.row.${mIdx + 1}`}
+                >
+                  <span className="text-sm text-foreground/90 font-semibold truncate">
+                    👤 {name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveStudent(name)}
+                    disabled={removeStudent.isPending}
+                    className="text-xs px-2.5 py-1 rounded-lg font-semibold transition-all hover:scale-105 flex-shrink-0"
+                    style={{
+                      background: "oklch(0.15 0.05 20 / 0.4)",
+                      border: "1px solid oklch(0.65 0.15 20 / 0.4)",
+                      color: "oklch(0.75 0.15 20)",
+                    }}
+                    data-ocid={`admin_registry.class.remove.delete_button.${mIdx + 1}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Empty members state */}
+      {classGroup.memberNames.length === 0 && (
+        <div className="px-4 pb-4 text-xs text-muted-foreground italic">
+          No students yet — share the code{" "}
+          <span className="font-bold text-neon-cyan">
+            {classGroup.joinCode}
+          </span>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Class Groups Tab ──────────────────────────────────────────────
+function ClassGroupsTab() {
+  const { data: classes = [], isLoading } = useGetAllClasses();
+  const [, setRefreshKey] = useState(0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-display font-bold text-base text-foreground">
+            Class Groups
+          </div>
+          <div className="text-muted-foreground text-xs mt-0.5">
+            {isLoading
+              ? "Loading…"
+              : `${classes.length} class${classes.length !== 1 ? "es" : ""}`}
+          </div>
+        </div>
+        <CreateClassModal onCreated={() => setRefreshKey((k) => k + 1)} />
+      </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-20 rounded-2xl animate-pulse"
+              style={{ background: "oklch(0.12 0.03 265 / 0.5)" }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && classes.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4 py-12 text-center"
+          data-ocid="admin_registry.classes.empty_state"
+        >
+          <div className="text-5xl opacity-40">🏫</div>
+          <div>
+            <div className="text-foreground/80 font-semibold text-sm mb-1">
+              No classes yet
+            </div>
+            <div className="text-muted-foreground text-xs max-w-[200px] mx-auto">
+              Create a class group and share the join code with your students
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Class list */}
+      {!isLoading && classes.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {classes.map((cls, idx) => (
+            <ClassCard key={cls.id} classGroup={cls} index={idx} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CSV Export ────────────────────────────────────────────────────
+function exportStudentsCSV(students: StudentRegistryEntry[]) {
+  const headers = ["Name", "Grade", "XP", "Streak", "Badges", "Last Active"];
+  const rows = students.map((s) => {
+    const nowMs = Date.now();
+    const lastActiveMs = Number(s.lastActive) / 1_000_000;
+    const diffMs = nowMs - lastActiveMs;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const lastActiveStr =
+      Number(s.lastActive) === 0
+        ? "Never"
+        : diffDays === 0
+          ? "Today"
+          : `${diffDays} days ago`;
+
+    return [
+      `"${s.name.replace(/"/g, '""')}"`,
+      s.grade,
+      Number(s.xp),
+      Number(s.streakDays),
+      Number(s.badgeCount),
+      lastActiveStr,
+    ].join(",");
+  });
+
+  const csvContent = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "melting-maths-students.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── Main Dashboard ────────────────────────────────────────────────
 function RegistryDashboard({
   onBack,
@@ -238,6 +638,7 @@ function RegistryDashboard({
 }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("xp");
+  const [filterMode, setFilterMode] = useState<"all" | "inactive">("all");
 
   const totalXP = useMemo(
     () => students.reduce((sum, s) => sum + Number(s.xp), 0),
@@ -263,11 +664,21 @@ function RegistryDashboard({
     return top ? `Grade ${top[0]}` : "—";
   }, [students]);
 
+  const inactiveCount = useMemo(
+    () => students.filter(isStudentInactive).length,
+    [students],
+  );
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     let list = q
       ? students.filter((s) => s.name.toLowerCase().includes(q))
       : [...students];
+
+    if (filterMode === "inactive") {
+      list = list.filter(isStudentInactive);
+    }
+
     list = list.sort((a, b) => {
       switch (sortKey) {
         case "xp":
@@ -285,7 +696,7 @@ function RegistryDashboard({
       }
     });
     return list;
-  }, [students, search, sortKey]);
+  }, [students, search, sortKey, filterMode]);
 
   const SORT_OPTIONS: { value: SortKey; label: string }[] = [
     { value: "xp", label: "XP" },
@@ -333,6 +744,24 @@ function RegistryDashboard({
               LIVE
             </motion.div>
           </div>
+          {/* CSV Export button */}
+          {!isLoading && students.length > 0 && (
+            <button
+              type="button"
+              onClick={() => exportStudentsCSV(students)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-105"
+              style={{
+                background: "oklch(0.15 0.05 155 / 0.6)",
+                border: "1px solid oklch(0.72 0.22 155 / 0.4)",
+                color: "oklch(0.8 0.18 155)",
+                boxShadow: "0 0 8px oklch(0.72 0.22 155 / 0.15)",
+              }}
+              title="Export all students as CSV"
+              data-ocid="admin_registry.export.button"
+            >
+              📥 Export CSV
+            </button>
+          )}
           {/* Student count badge */}
           <div
             className="px-3 py-1.5 rounded-full text-xs font-bold"
@@ -413,230 +842,342 @@ function RegistryDashboard({
           ))}
         </motion.div>
 
-        {/* ── Search + Sort ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="flex gap-3"
-        >
-          <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="Search students…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground outline-none transition-all"
-              style={{
-                background: "oklch(0.12 0.03 265 / 0.8)",
-                border: "1px solid oklch(0.3 0.05 270 / 0.5)",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "oklch(0.78 0.2 195 / 0.7)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "oklch(0.3 0.05 270 / 0.5)";
-              }}
-              data-ocid="admin_registry.search.input"
-            />
-          </div>
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="px-3 py-2.5 rounded-xl text-sm font-semibold text-foreground outline-none cursor-pointer"
+        {/* ── Tabs: Students | Class Groups ── */}
+        <Tabs defaultValue="students" className="w-full">
+          <TabsList
+            className="w-full mb-4 rounded-xl p-1"
             style={{
-              background: "oklch(0.12 0.03 265 / 0.8)",
-              border: "1px solid oklch(0.3 0.05 270 / 0.5)",
+              background: "oklch(0.11 0.03 265 / 0.8)",
+              border: "1px solid oklch(0.25 0.04 270 / 0.4)",
             }}
-            data-ocid="admin_registry.sort.select"
+            data-ocid="admin_registry.tabs"
           >
-            {SORT_OPTIONS.map((o) => (
-              <option
-                key={o.value}
-                value={o.value}
-                style={{ background: "oklch(0.12 0.03 265)" }}
+            <TabsTrigger
+              value="students"
+              className="flex-1 rounded-lg data-[state=active]:bg-neon-cyan/15 data-[state=active]:text-neon-cyan font-display font-bold text-sm"
+              data-ocid="admin_registry.students.tab"
+            >
+              👥 Students
+            </TabsTrigger>
+            <TabsTrigger
+              value="classes"
+              className="flex-1 rounded-lg data-[state=active]:bg-neon-purple/15 data-[state=active]:text-neon-purple font-display font-bold text-sm"
+              data-ocid="admin_registry.classes.tab"
+            >
+              🏫 Class Groups
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Students tab ── */}
+          <TabsContent value="students" className="space-y-4 mt-0">
+            {/* Filter toggle: All / Inactive */}
+            {!isLoading && students.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex gap-2"
               >
-                Sort: {o.label}
-              </option>
-            ))}
-          </select>
-        </motion.div>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode("all")}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                  style={
+                    filterMode === "all"
+                      ? {
+                          background: "oklch(0.2 0.06 195 / 0.7)",
+                          border: "1px solid oklch(0.78 0.2 195 / 0.6)",
+                          color: "oklch(0.85 0.18 195)",
+                        }
+                      : {
+                          background: "oklch(0.12 0.03 265 / 0.6)",
+                          border: "1px solid oklch(0.25 0.04 270 / 0.4)",
+                          color: "oklch(0.55 0.04 270)",
+                        }
+                  }
+                  data-ocid="admin_registry.filter.all.tab"
+                >
+                  All Students ({students.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode("inactive")}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                  style={
+                    filterMode === "inactive"
+                      ? {
+                          background: "oklch(0.18 0.06 70 / 0.7)",
+                          border: "1px solid oklch(0.82 0.18 70 / 0.6)",
+                          color: "oklch(0.9 0.18 70)",
+                        }
+                      : {
+                          background: "oklch(0.12 0.03 265 / 0.6)",
+                          border: "1px solid oklch(0.25 0.04 270 / 0.4)",
+                          color: "oklch(0.55 0.04 270)",
+                        }
+                  }
+                  data-ocid="admin_registry.filter.inactive.tab"
+                >
+                  ⚠️ Inactive 3+ Days ({inactiveCount})
+                </button>
+              </motion.div>
+            )}
 
-        {/* ── Student List ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.16 }}
-          className="rounded-2xl overflow-hidden"
-          style={{
-            border: "1px solid oklch(0.25 0.04 270 / 0.4)",
-            background: "oklch(0.09 0.02 265 / 0.6)",
-          }}
-        >
-          {/* Table header */}
-          <div
-            className="grid gap-2 px-4 py-3 text-xs font-bold text-muted-foreground tracking-wider uppercase"
-            style={{
-              gridTemplateColumns: "2rem 1fr auto auto auto auto",
-              borderBottom: "1px solid oklch(0.2 0.04 270 / 0.4)",
-              background: "oklch(0.11 0.03 270 / 0.5)",
-            }}
-          >
-            <span>#</span>
-            <span>Student</span>
-            <span
-              className="text-right"
-              style={{ color: "oklch(0.78 0.2 195)" }}
-            >
-              XP
-            </span>
-            <span
-              className="text-right"
-              style={{ color: "oklch(0.82 0.18 70)" }}
-            >
-              Streak
-            </span>
-            <span
-              className="text-right"
-              style={{ color: "oklch(0.7 0.22 280)" }}
-            >
-              Badges
-            </span>
-            <span className="text-right text-muted-foreground">Active</span>
-          </div>
-
-          {/* Loading skeletons */}
-          {isLoading && (
-            <div className="divide-y divide-border/20">
-              {Array.from({ length: 5 }, (_, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
-                <SkeletonRow key={i} index={i} />
-              ))}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!isLoading && filtered.length === 0 && (
+            {/* Search + Sort */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center gap-3 py-12 px-6 text-center"
-              data-ocid="admin_registry.empty_state"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 }}
+              className="flex gap-3"
             >
-              <div className="text-5xl opacity-40">📋</div>
-              <div className="text-muted-foreground text-sm">
-                {search
-                  ? `No students match "${search}"`
-                  : "No students registered yet. Students register when they first log in."}
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  🔍
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search students…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground outline-none transition-all"
+                  style={{
+                    background: "oklch(0.12 0.03 265 / 0.8)",
+                    border: "1px solid oklch(0.3 0.05 270 / 0.5)",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "oklch(0.78 0.2 195 / 0.7)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "oklch(0.3 0.05 270 / 0.5)";
+                  }}
+                  data-ocid="admin_registry.search.input"
+                />
               </div>
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                className="px-3 py-2.5 rounded-xl text-sm font-semibold text-foreground outline-none cursor-pointer"
+                style={{
+                  background: "oklch(0.12 0.03 265 / 0.8)",
+                  border: "1px solid oklch(0.3 0.05 270 / 0.5)",
+                }}
+                data-ocid="admin_registry.sort.select"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option
+                    key={o.value}
+                    value={o.value}
+                    style={{ background: "oklch(0.12 0.03 265)" }}
+                  >
+                    Sort: {o.label}
+                  </option>
+                ))}
+              </select>
             </motion.div>
-          )}
 
-          {/* Student rows */}
-          {!isLoading && filtered.length > 0 && (
-            <div className="divide-y divide-border/10">
-              <AnimatePresence>
-                {filtered.map((student, index) => {
-                  const gradeColors = getGradeColor(student.grade);
-                  return (
-                    <motion.div
-                      key={`${student.name}-${student.grade}`}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 8 }}
-                      transition={{ delay: index * 0.03, duration: 0.25 }}
-                      whileHover={{
-                        backgroundColor: "oklch(0.13 0.03 265 / 0.6)",
-                      }}
-                      className="grid gap-2 px-4 py-3 items-center cursor-default transition-colors"
-                      style={{
-                        gridTemplateColumns: "2rem 1fr auto auto auto auto",
-                      }}
-                      data-ocid={`admin_registry.student.row.${index + 1}`}
-                    >
-                      {/* Rank */}
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
-                        style={{
-                          background:
-                            index < 3
-                              ? `oklch(${index === 0 ? "0.82 0.18 70" : index === 1 ? "0.72 0.08 270" : "0.65 0.12 30"} / 0.15)`
-                              : "oklch(0.15 0.03 265 / 0.5)",
-                          color:
-                            index < 3
-                              ? `oklch(${index === 0 ? "0.85 0.18 70" : index === 1 ? "0.75 0.08 270" : "0.68 0.12 30"})`
-                              : "oklch(0.5 0.05 270)",
-                          border: `1px solid ${
-                            index < 3
-                              ? `oklch(${index === 0 ? "0.82 0.18 70" : index === 1 ? "0.72 0.08 270" : "0.65 0.12 30"} / 0.3)`
-                              : "oklch(0.25 0.04 270 / 0.3)"
-                          }`,
-                        }}
-                      >
-                        {index + 1}
-                      </div>
+            {/* Student List */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 }}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                border: "1px solid oklch(0.25 0.04 270 / 0.4)",
+                background: "oklch(0.09 0.02 265 / 0.6)",
+              }}
+            >
+              {/* Table header */}
+              <div
+                className="grid gap-2 px-4 py-3 text-xs font-bold text-muted-foreground tracking-wider uppercase"
+                style={{
+                  gridTemplateColumns: "2rem 1fr auto auto auto auto",
+                  borderBottom: "1px solid oklch(0.2 0.04 270 / 0.4)",
+                  background: "oklch(0.11 0.03 270 / 0.5)",
+                }}
+              >
+                <span>#</span>
+                <span>Student</span>
+                <span
+                  className="text-right"
+                  style={{ color: "oklch(0.78 0.2 195)" }}
+                >
+                  XP
+                </span>
+                <span
+                  className="text-right"
+                  style={{ color: "oklch(0.82 0.18 70)" }}
+                >
+                  Streak
+                </span>
+                <span
+                  className="text-right"
+                  style={{ color: "oklch(0.7 0.22 280)" }}
+                >
+                  Badges
+                </span>
+                <span className="text-right text-muted-foreground">Active</span>
+              </div>
 
-                      {/* Name + Grade badge */}
-                      <div className="min-w-0">
-                        <div className="font-display font-bold text-sm text-foreground truncate">
-                          {student.name}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span
-                            className="text-xs font-semibold px-1.5 py-0.5 rounded-md"
+              {/* Loading skeletons */}
+              {isLoading && (
+                <div className="divide-y divide-border/20">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
+                    <SkeletonRow key={i} index={i} />
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!isLoading && filtered.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center gap-3 py-12 px-6 text-center"
+                  data-ocid="admin_registry.empty_state"
+                >
+                  <div className="text-5xl opacity-40">📋</div>
+                  <div className="text-muted-foreground text-sm">
+                    {search
+                      ? `No students match "${search}"`
+                      : "No students registered yet. Students register when they first log in."}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Student rows */}
+              {!isLoading && filtered.length > 0 && (
+                <div className="divide-y divide-border/10">
+                  <AnimatePresence>
+                    {filtered.map((student, index) => {
+                      const gradeColors = getGradeColor(student.grade);
+                      const inactive = isStudentInactive(student);
+                      return (
+                        <motion.div
+                          key={`${student.name}-${student.grade}`}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 8 }}
+                          transition={{ delay: index * 0.03, duration: 0.25 }}
+                          whileHover={{
+                            backgroundColor: "oklch(0.13 0.03 265 / 0.6)",
+                          }}
+                          className="grid gap-2 px-4 py-3 items-center cursor-default transition-colors"
+                          style={{
+                            gridTemplateColumns: "2rem 1fr auto auto auto auto",
+                            ...(inactive
+                              ? {
+                                  borderLeft:
+                                    "2px solid oklch(0.82 0.18 70 / 0.5)",
+                                  background: "oklch(0.11 0.03 70 / 0.15)",
+                                }
+                              : {}),
+                          }}
+                          data-ocid={`admin_registry.student.row.${index + 1}`}
+                        >
+                          {/* Rank */}
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
                             style={{
-                              background: gradeColors.bg,
-                              color: gradeColors.text,
-                              border: `1px solid ${gradeColors.border}`,
+                              background:
+                                index < 3
+                                  ? `oklch(${index === 0 ? "0.82 0.18 70" : index === 1 ? "0.72 0.08 270" : "0.65 0.12 30"} / 0.15)`
+                                  : "oklch(0.15 0.03 265 / 0.5)",
+                              color:
+                                index < 3
+                                  ? `oklch(${index === 0 ? "0.85 0.18 70" : index === 1 ? "0.75 0.08 270" : "0.68 0.12 30"})`
+                                  : "oklch(0.5 0.05 270)",
+                              border: `1px solid ${
+                                index < 3
+                                  ? `oklch(${index === 0 ? "0.82 0.18 70" : index === 1 ? "0.72 0.08 270" : "0.65 0.12 30"} / 0.3)`
+                                  : "oklch(0.25 0.04 270 / 0.3)"
+                              }`,
                             }}
                           >
-                            G{student.grade}
-                          </span>
-                        </div>
-                      </div>
+                            {index + 1}
+                          </div>
 
-                      {/* XP */}
-                      <div
-                        className="font-display text-sm font-bold text-right tabular-nums"
-                        style={{ color: "oklch(0.78 0.2 195)" }}
-                      >
-                        {Number(student.xp).toLocaleString()}
-                      </div>
+                          {/* Name + Grade badge */}
+                          <div className="min-w-0">
+                            <div className="font-display font-bold text-sm text-foreground truncate">
+                              {student.name}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span
+                                className="text-xs font-semibold px-1.5 py-0.5 rounded-md"
+                                style={{
+                                  background: gradeColors.bg,
+                                  color: gradeColors.text,
+                                  border: `1px solid ${gradeColors.border}`,
+                                }}
+                              >
+                                G{student.grade}
+                              </span>
+                              {inactive && (
+                                <span
+                                  className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+                                  style={{
+                                    background: "oklch(0.18 0.06 70 / 0.4)",
+                                    color: "oklch(0.85 0.18 70)",
+                                    border:
+                                      "1px solid oklch(0.82 0.18 70 / 0.4)",
+                                  }}
+                                >
+                                  ⚠️ Inactive
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-                      {/* Streak */}
-                      <div className="font-semibold text-sm text-right text-amber-400 tabular-nums">
-                        🔥{Number(student.streakDays)}
-                      </div>
+                          {/* XP */}
+                          <div
+                            className="font-display text-sm font-bold text-right tabular-nums"
+                            style={{ color: "oklch(0.78 0.2 195)" }}
+                          >
+                            {Number(student.xp).toLocaleString()}
+                          </div>
 
-                      {/* Badges */}
-                      <div
-                        className="font-semibold text-sm text-right tabular-nums"
-                        style={{ color: "oklch(0.7 0.22 280)" }}
-                      >
-                        🏅{Number(student.badgeCount)}
-                      </div>
+                          {/* Streak */}
+                          <div className="font-semibold text-sm text-right text-amber-400 tabular-nums">
+                            🔥{Number(student.streakDays)}
+                          </div>
 
-                      {/* Last Active */}
-                      <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
-                        {formatRelativeTime(student.lastActive)}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          )}
-        </motion.div>
+                          {/* Badges */}
+                          <div
+                            className="font-semibold text-sm text-right tabular-nums"
+                            style={{ color: "oklch(0.7 0.22 280)" }}
+                          >
+                            🏅{Number(student.badgeCount)}
+                          </div>
 
-        {/* Footer note */}
-        {!isLoading && students.length > 0 && (
-          <p className="text-center text-xs text-muted-foreground">
-            Showing {filtered.length} of {students.length} registered students
-          </p>
-        )}
+                          {/* Last Active */}
+                          <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                            {formatRelativeTime(student.lastActive)}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Footer note */}
+            {!isLoading && students.length > 0 && (
+              <p className="text-center text-xs text-muted-foreground">
+                Showing {filtered.length} of {students.length} registered
+                students
+              </p>
+            )}
+          </TabsContent>
+
+          {/* ── Class Groups tab ── */}
+          <TabsContent value="classes" className="mt-0">
+            <ClassGroupsTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

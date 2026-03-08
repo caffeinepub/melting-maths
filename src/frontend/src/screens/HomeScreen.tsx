@@ -7,7 +7,11 @@ import {
   getCompletedChallengeIds,
   getWeeklyChallenges,
 } from "../data/weeklyChallenge";
-import { useActiveUsers, useTotalVisits } from "../hooks/useQueries";
+import {
+  useActiveUsers,
+  useGetWeeklyTopPlayers,
+  useTotalVisits,
+} from "../hooks/useQueries";
 
 interface HomeScreenProps {
   profile: PlayerProfile;
@@ -20,7 +24,36 @@ const UTILITY_ITEMS: Array<{
   label: string;
   accent: string;
   wide?: boolean;
+  badge?: string;
 }> = [
+  {
+    screen: "tournament",
+    icon: "⚔️",
+    label: "Tournament",
+    accent: "oklch(0.82 0.18 70)",
+    badge: "NEW",
+  },
+  {
+    screen: "daily-dungeon",
+    icon: "🏰",
+    label: "Daily Dungeon",
+    accent: "oklch(0.7 0.22 280)",
+    badge: "DAILY",
+  },
+  {
+    screen: "boss-rush",
+    icon: "👾",
+    label: "Boss Rush",
+    accent: "oklch(0.7 0.22 20)",
+    badge: "HARD",
+  },
+  {
+    screen: "challenge",
+    icon: "🤝",
+    label: "Challenge",
+    accent: "oklch(0.72 0.22 155)",
+    badge: "PVP",
+  },
   {
     screen: "shinchen",
     icon: "🌟",
@@ -59,6 +92,19 @@ const UTILITY_ITEMS: Array<{
     accent: "oklch(0.72 0.22 25)",
   },
 ];
+
+function getHomeTitle(
+  xp: number,
+  streakDays: number,
+  badges: string[],
+): string {
+  if (xp >= 2500) return "Math Genius";
+  if (xp >= 1000) return "XP Legend";
+  if (badges.includes("boss_slayer_ultimate")) return "Boss Slayer";
+  if (streakDays >= 7) return "Streak King";
+  if (xp >= 500) return "Math Wizard";
+  return "Apprentice";
+}
 
 // 30+ personalized daily messages
 const DAILY_MESSAGES: string[] = [
@@ -146,6 +192,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
     isLoading: visitsLoading,
   } = useTotalVisits();
   const { data: activeUsersData } = useActiveUsers();
+  const { data: weeklyTopPlayers = [] } = useGetWeeklyTopPlayers();
   const visitsCount = useMotionValue(0);
   const visitsDisplay = useTransform(visitsCount, (v) =>
     Math.round(v).toLocaleString(),
@@ -200,6 +247,22 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               <h1 className="font-display text-3xl font-black text-glow-cyan leading-tight mt-0.5">
                 {profile.name}!
               </h1>
+              {/* Player title */}
+              <div
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold mt-1"
+                style={{
+                  background: "oklch(0.78 0.2 195 / 0.12)",
+                  border: "1px solid oklch(0.78 0.2 195 / 0.3)",
+                  color: "oklch(0.85 0.18 195)",
+                }}
+              >
+                👑{" "}
+                {getHomeTitle(
+                  Number(profile.xp),
+                  Number(profile.streakDays),
+                  profile.badges,
+                )}
+              </div>
             </div>
             {/* Wordmark */}
             <div className="text-right">
@@ -352,17 +415,9 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
 
         <div className="relative flex items-center gap-5 p-5">
           {/* Animated icon */}
-          <motion.div
-            animate={{ rotate: [0, -8, 8, 0] }}
-            transition={{
-              duration: 3,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }}
-            className="text-5xl flex-shrink-0 drop-shadow-[0_0_12px_oklch(0.78_0.2_195/0.7)]"
-          >
+          <div className="text-5xl flex-shrink-0 drop-shadow-[0_0_12px_oklch(0.78_0.2_195/0.7)] animate-home-gamepad">
             🎮
-          </motion.div>
+          </div>
 
           <div className="flex-1">
             <div
@@ -383,17 +438,9 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
           </div>
 
           {/* Arrow */}
-          <motion.div
-            animate={{ x: [0, 4, 0] }}
-            transition={{
-              duration: 1.8,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }}
-            className="text-neon-cyan text-xl flex-shrink-0 pr-1"
-          >
+          <div className="text-neon-cyan text-xl flex-shrink-0 pr-1 animate-home-arrow">
             →
-          </motion.div>
+          </div>
         </div>
 
         {/* Animated bottom neon line */}
@@ -592,15 +639,9 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
         data-ocid="home.active_users.card"
       >
         {/* Pulsing green dot */}
-        <motion.div
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        <div
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0 animate-pulse-glow"
           style={{ background: "oklch(0.72 0.22 155)" }}
-          animate={{ opacity: [1, 0.3, 1], scale: [1, 0.75, 1] }}
-          transition={{
-            duration: 1.6,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
         />
         <span
           className="font-display text-xs font-bold tracking-wide"
@@ -659,6 +700,89 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
         </button>
       </motion.button>
 
+      {/* ── WEEKLY HALL OF FAME ───────────────────────────────── */}
+      {weeklyTopPlayers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.26 }}
+          className="mx-6 mb-4 rounded-2xl p-4"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.12 0.05 70 / 0.5), oklch(0.09 0.02 265 / 0.8))",
+            border: "1px solid oklch(0.82 0.18 70 / 0.3)",
+            boxShadow: "0 0 20px oklch(0.82 0.18 70 / 0.08)",
+          }}
+          data-ocid="home.hall_of_fame.card"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">🏆</span>
+            <div
+              className="font-display text-xs font-bold tracking-widest"
+              style={{ color: "oklch(0.9 0.18 70)" }}
+            >
+              THIS WEEK'S TOP PLAYERS
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {weeklyTopPlayers.slice(0, 3).map((player, i) => {
+              const isCurrentUser = player.name === profile.name;
+              const rankIcons = ["🥇", "🥈", "🥉"];
+              const rankColors = [
+                "oklch(0.82 0.18 70)",
+                "oklch(0.75 0.05 265)",
+                "oklch(0.72 0.16 45)",
+              ];
+              return (
+                <motion.div
+                  key={player.name}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.28 + i * 0.06 }}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                  style={{
+                    background: isCurrentUser
+                      ? "oklch(0.82 0.18 70 / 0.1)"
+                      : "oklch(0.1 0.02 265 / 0.5)",
+                    border: `1px solid ${isCurrentUser ? "oklch(0.82 0.18 70 / 0.4)" : "oklch(0.25 0.04 270 / 0.3)"}`,
+                    boxShadow: isCurrentUser
+                      ? "0 0 12px oklch(0.82 0.18 70 / 0.2)"
+                      : "none",
+                  }}
+                  data-ocid={`home.hall_of_fame.item.${i + 1}`}
+                >
+                  <span className="text-base flex-shrink-0">
+                    {rankIcons[i]}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="font-display font-bold text-xs truncate"
+                      style={{
+                        color: isCurrentUser
+                          ? "oklch(0.92 0.18 70)"
+                          : rankColors[i],
+                      }}
+                    >
+                      {player.name}
+                      {isCurrentUser && " 🌟"}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      Grade {player.grade}
+                    </div>
+                  </div>
+                  <div
+                    className="font-display font-black text-sm tabular-nums flex-shrink-0"
+                    style={{ color: rankColors[i] }}
+                  >
+                    {Number(player.xp).toLocaleString()} XP
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
       {/* ── UTILITY GRID ──────────────────────────────────────── */}
       <div className="flex-1 px-6 pb-8">
         <div className="grid grid-cols-2 gap-3">
@@ -675,7 +799,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               className={`card-neon rounded-2xl p-4 text-center cursor-pointer
                 flex items-center justify-center gap-2
                 border border-border/50 transition-all duration-200
-                ${item.wide ? "col-span-2 min-h-[72px] flex-row" : "flex-col min-h-[96px]"}`}
+                ${item.wide ? "col-span-2 min-h-[72px] flex-row" : "flex-col min-h-[96px]"} relative`}
               style={{
                 ["--hover-accent" as string]: item.accent,
               }}
@@ -691,6 +815,19 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               }}
               data-ocid={`home.${item.screen}.link`}
             >
+              {/* Badge */}
+              {item.badge && (
+                <div
+                  className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-wide"
+                  style={{
+                    background: item.accent.replace(")", " / 0.2)"),
+                    border: `1px solid ${item.accent.replace(")", " / 0.5)")}`,
+                    color: item.accent,
+                  }}
+                >
+                  {item.badge}
+                </div>
+              )}
               <div className="text-2xl">{item.icon}</div>
               <div
                 className={`font-display font-bold text-xs text-foreground/80 leading-tight ${item.wide ? "flex-1 text-left" : ""}`}
@@ -706,14 +843,9 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
                     border: "1px solid oklch(0.72 0.22 155 / 0.4)",
                   }}
                 >
-                  <motion.div
-                    className="w-1.5 h-1.5 rounded-full"
+                  <div
+                    className="w-1.5 h-1.5 rounded-full animate-pulse-glow"
                     style={{ background: "oklch(0.72 0.22 155)" }}
-                    animate={{ opacity: [1, 0.3, 1] }}
-                    transition={{
-                      duration: 1.4,
-                      repeat: Number.POSITIVE_INFINITY,
-                    }}
                   />
                   LIVE
                 </div>

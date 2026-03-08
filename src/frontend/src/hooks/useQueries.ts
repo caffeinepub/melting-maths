@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import type {
+  ClassGroup,
   LeaderboardEntry,
   PlayerProfile,
   PublicStats,
@@ -166,9 +167,9 @@ export function usePublicStats() {
       }
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 15000,
-    staleTime: 10000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 30_000, // reduced from 15s -> 30s
+    staleTime: 25_000,
+    refetchOnWindowFocus: false, // don't spam on tab switch
   });
 
   return { statsQuery };
@@ -188,9 +189,9 @@ export function useActiveUsers() {
       }
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 15000,
-    staleTime: 10000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 30_000, // reduced from 15s -> 30s
+    staleTime: 25_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -203,18 +204,24 @@ export function useHeartbeat(name: string) {
   useEffect(() => {
     if (!actor || isFetching || !nameRef.current) return;
 
-    const sendHeartbeat = () => {
+    // Delay initial heartbeat by 5s so it doesn't fire during page load
+    const initialTimer = setTimeout(() => {
       if (nameRef.current) {
         actor.heartbeat(nameRef.current).catch(() => {});
       }
+    }, 5_000);
+
+    // Then every 45 seconds (was 30s)
+    const interval = setInterval(() => {
+      if (nameRef.current) {
+        actor.heartbeat(nameRef.current).catch(() => {});
+      }
+    }, 45_000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
     };
-
-    // Send immediately
-    sendHeartbeat();
-
-    // Then every 30 seconds
-    const interval = setInterval(sendHeartbeat, 30_000);
-    return () => clearInterval(interval);
   }, [actor, isFetching]);
 }
 
@@ -285,5 +292,109 @@ export function useUnlockedLevels(gameId: string) {
     },
     enabled: !!actor && !isFetching && !!gameId,
     staleTime: 30_000,
+  });
+}
+
+// ─── Class Groups ─────────────────────────────────────────────────
+export function useCreateClass() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      joinCode,
+    }: { name: string; joinCode: string }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.createClass(name, joinCode);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allClasses"] });
+    },
+  });
+}
+
+export function useGetAllClasses() {
+  const { actor, isFetching } = useActor();
+  return useQuery<ClassGroup[]>({
+    queryKey: ["allClasses"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await actor.getAllClasses();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+  });
+}
+
+export function useGetClassByCode(joinCode: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<ClassGroup | null>({
+    queryKey: ["classByCode", joinCode],
+    queryFn: async () => {
+      if (!actor || !joinCode) return null;
+      try {
+        return await actor.getClassByCode(joinCode);
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!actor && !isFetching && !!joinCode,
+    staleTime: 30_000,
+  });
+}
+
+export function useJoinClass() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      joinCode,
+      studentName,
+    }: { joinCode: string; studentName: string }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.joinClass(joinCode, studentName);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allClasses"] });
+    },
+  });
+}
+
+export function useRemoveStudentFromClass() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      joinCode,
+      studentName,
+    }: { joinCode: string; studentName: string }) => {
+      if (!actor) throw new Error("No actor");
+      await actor.removeStudentFromClass(joinCode, studentName);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allClasses"] });
+    },
+  });
+}
+
+export function useGetWeeklyTopPlayers() {
+  const { actor, isFetching } = useActor();
+  return useQuery<StudentRegistryEntry[]>({
+    queryKey: ["weeklyTopPlayers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await actor.getWeeklyTopPlayers();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 }

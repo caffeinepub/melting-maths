@@ -635,6 +635,26 @@
   background: oklch(0.7 0.06 270);
 }
 
+/* ─── Home screen arrow bounce ──────────────────────────────── */
+@keyframes home-arrow-slide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+
+.animate-home-arrow {
+  animation: home-arrow-slide 1.8s ease-in-out infinite;
+}
+
+@keyframes home-gamepad-rock {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+.animate-home-gamepad {
+  animation: home-gamepad-rock 3s ease-in-out infinite;
+}
+
 /* ─── Hint highlight pulse ────────────────────────────────────── */
 @keyframes hint-pulse {
   0%, 100% {

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { PlayerProfile } from "./backend.d";
 import { Cutscene } from "./components/Cutscene";
 import { FloatingMath } from "./components/FloatingMath";
+import { GameIntro } from "./components/GameIntro";
 import { GradeBackground } from "./components/GradeBackground";
 import { GradePromotion } from "./components/GradePromotion";
 import {
@@ -16,6 +17,9 @@ import {
 } from "./hooks/useQueries";
 import { AdminRegistryScreen } from "./screens/AdminRegistryScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
+import { BossRushScreen } from "./screens/BossRushScreen";
+import { ChallengeScreen } from "./screens/ChallengeScreen";
+import { DailyDungeonScreen } from "./screens/DailyDungeonScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { GameSelectScreen } from "./screens/GameSelectScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -25,6 +29,7 @@ import { ProfileScreen } from "./screens/ProfileScreen";
 import { PublicAnalyticsScreen } from "./screens/PublicAnalyticsScreen";
 import { ShinchenScreen } from "./screens/ShinchenScreen";
 import { TeacherDashboard } from "./screens/TeacherDashboard";
+import { TournamentScreen } from "./screens/TournamentScreen";
 
 export type Screen =
   | "onboarding"
@@ -37,7 +42,11 @@ export type Screen =
   | "teacher"
   | "analytics"
   | "public-analytics"
-  | "admin-registry";
+  | "admin-registry"
+  | "tournament"
+  | "daily-dungeon"
+  | "boss-rush"
+  | "challenge";
 
 const STORAGE_KEY = "meltingmaths_profile";
 
@@ -227,9 +236,48 @@ function checkGradePromotion(grade: number): boolean {
   }
 }
 
+// ─── Game Intro helpers ────────────────────────────────────────────
+const GAME_INFO: Record<string, { name: string; gradeGroup: string }> = {
+  "number-catcher": { name: "Number Catcher", gradeGroup: "1-3" },
+  "addition-rocket": { name: "Addition Rocket", gradeGroup: "1-3" },
+  "subtraction-blocks": { name: "Subtraction Blocks", gradeGroup: "1-3" },
+  "number-race": { name: "Number Race", gradeGroup: "1-3" },
+  "shape-sorter": { name: "Shape Sorter", gradeGroup: "1-3" },
+  "skip-counter": { name: "Skip Counter", gradeGroup: "1-3" },
+  "fraction-battle": { name: "Fraction Battle Arena", gradeGroup: "4-5" },
+  "decimal-dash": { name: "Decimal Dash", gradeGroup: "4-5" },
+  "time-master": { name: "Time Master", gradeGroup: "4-5" },
+  "multiplication-madness": {
+    name: "Multiplication Madness",
+    gradeGroup: "4-5",
+  },
+  "division-dungeon": { name: "Division Dungeon", gradeGroup: "4-5" },
+  "word-problem-wizard": { name: "Word Problem Wizard", gradeGroup: "4-5" },
+  "algebra-escape": { name: "Algebra Escape Room", gradeGroup: "6-8" },
+  "geometry-builder": { name: "Geometry Builder", gradeGroup: "6-8" },
+  "integer-war": { name: "Integer War", gradeGroup: "6-8" },
+  "ratio-rumble": { name: "Ratio Rumble", gradeGroup: "6-8" },
+  "percentage-power": { name: "Percentage Power", gradeGroup: "6-8" },
+  "pattern-detective": { name: "Pattern Detective", gradeGroup: "6-8" },
+  "quadratic-boss": { name: "Quadratic Boss Fight", gradeGroup: "9-10" },
+  "graph-builder": { name: "Graph Builder Challenge", gradeGroup: "9-10" },
+  "trig-sniper": { name: "Trigonometry Sniper", gradeGroup: "9-10" },
+  "statistics-showdown": { name: "Statistics Showdown", gradeGroup: "9-10" },
+  "sequence-solver": { name: "Sequence Solver", gradeGroup: "9-10" },
+  "coordinate-quest": { name: "Coordinate Quest", gradeGroup: "9-10" },
+  "calculus-runner": { name: "Calculus Runner", gradeGroup: "11-12" },
+  "matrix-code": { name: "Matrix Code Breaker", gradeGroup: "11-12" },
+  "probability-strategy": { name: "Probability Strategy", gradeGroup: "11-12" },
+  "complex-clash": { name: "Complex Clash", gradeGroup: "11-12" },
+  "logarithm-lab": { name: "Logarithm Lab", gradeGroup: "11-12" },
+  "vectors-voyage": { name: "Vectors Voyage", gradeGroup: "11-12" },
+};
+
 function AppContent() {
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [pendingGameId, setPendingGameId] = useState<string | null>(null);
+  const [showGameIntro, setShowGameIntro] = useState(false);
   const [localProfile, setLocalProfile] = useState<PlayerProfile | null>(() =>
     loadCachedProfile(),
   );
@@ -418,8 +466,8 @@ function AppContent() {
           <GameSelectScreen
             profile={profile}
             onSelectGame={(gameId) => {
-              setSelectedGame(gameId);
-              setScreen("game");
+              setPendingGameId(gameId);
+              setShowGameIntro(true);
             }}
             onBack={() => setScreen("home")}
           />
@@ -469,7 +517,51 @@ function AppContent() {
         {screen === "admin-registry" && (
           <AdminRegistryScreen onBack={() => setScreen("home")} />
         )}
+        {screen === "tournament" && profile && (
+          <TournamentScreen
+            profile={profile}
+            onProfileUpdate={handleProfileUpdate}
+            onBack={() => setScreen("home")}
+          />
+        )}
+        {screen === "daily-dungeon" && profile && (
+          <DailyDungeonScreen
+            profile={profile}
+            onProfileUpdate={handleProfileUpdate}
+            onBack={() => setScreen("home")}
+          />
+        )}
+        {screen === "boss-rush" && profile && (
+          <BossRushScreen
+            profile={profile}
+            onProfileUpdate={handleProfileUpdate}
+            onBack={() => setScreen("home")}
+          />
+        )}
+        {screen === "challenge" && profile && (
+          <ChallengeScreen
+            profile={profile}
+            onProfileUpdate={handleProfileUpdate}
+            onBack={() => setScreen("home")}
+          />
+        )}
       </div>
+
+      {/* Game Intro Cinematic */}
+      <AnimatePresence>
+        {showGameIntro && pendingGameId && (
+          <GameIntro
+            gameTitle={GAME_INFO[pendingGameId]?.name ?? pendingGameId}
+            gradeGroup={GAME_INFO[pendingGameId]?.gradeGroup ?? "1-3"}
+            onComplete={() => {
+              setSelectedGame(pendingGameId);
+              setPendingGameId(null);
+              setShowGameIntro(false);
+              setScreen("game");
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Grade Promotion Overlay */}
       <AnimatePresence>

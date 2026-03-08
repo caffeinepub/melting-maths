@@ -9,6 +9,13 @@
 import { IDL } from '@icp-sdk/core/candid';
 
 export const Time = IDL.Int;
+export const ClassGroup = IDL.Record({
+  'id' : IDL.Text,
+  'joinCode' : IDL.Text,
+  'name' : IDL.Text,
+  'createdAt' : Time,
+  'memberNames' : IDL.Vec(IDL.Text),
+});
 export const StudentRegistryEntry = IDL.Record({
   'xp' : IDL.Nat,
   'name' : IDL.Text,
@@ -38,13 +45,16 @@ export const PublicStats = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'createClass' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'createOrUpdateProfile' : IDL.Func([IDL.Text, IDL.Nat8], [], []),
   'getActiveUsers' : IDL.Func([], [IDL.Nat], ['query']),
+  'getAllClasses' : IDL.Func([], [IDL.Vec(ClassGroup)], ['query']),
   'getAllStudentProfiles' : IDL.Func(
       [],
       [IDL.Vec(StudentRegistryEntry)],
       ['query'],
     ),
+  'getClassByCode' : IDL.Func([IDL.Text], [IDL.Opt(ClassGroup)], ['query']),
   'getProfile' : IDL.Func([], [IDL.Opt(PlayerProfile)], ['query']),
   'getPublicStats' : IDL.Func([], [PublicStats], ['query']),
   'getTopLeaderboardEntries' : IDL.Func(
@@ -54,12 +64,19 @@ export const idlService = IDL.Service({
     ),
   'getTotalVisits' : IDL.Func([], [IDL.Nat], ['query']),
   'getUnlockedLevels' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Nat)], ['query']),
+  'getWeeklyTopPlayers' : IDL.Func(
+      [],
+      [IDL.Vec(StudentRegistryEntry)],
+      ['query'],
+    ),
   'heartbeat' : IDL.Func([IDL.Text], [], []),
+  'joinClass' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'recordGameSession' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
       [],
       [],
     ),
+  'removeStudentFromClass' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'resetProgress' : IDL.Func([], [], []),
   'submitLeaderboardEntry' : IDL.Func(
       [IDL.Text, IDL.Nat8, IDL.Nat, IDL.Nat, IDL.Nat],
@@ -73,6 +90,13 @@ export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
   const Time = IDL.Int;
+  const ClassGroup = IDL.Record({
+    'id' : IDL.Text,
+    'joinCode' : IDL.Text,
+    'name' : IDL.Text,
+    'createdAt' : Time,
+    'memberNames' : IDL.Vec(IDL.Text),
+  });
   const StudentRegistryEntry = IDL.Record({
     'xp' : IDL.Nat,
     'name' : IDL.Text,
@@ -102,13 +126,16 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'createClass' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'createOrUpdateProfile' : IDL.Func([IDL.Text, IDL.Nat8], [], []),
     'getActiveUsers' : IDL.Func([], [IDL.Nat], ['query']),
+    'getAllClasses' : IDL.Func([], [IDL.Vec(ClassGroup)], ['query']),
     'getAllStudentProfiles' : IDL.Func(
         [],
         [IDL.Vec(StudentRegistryEntry)],
         ['query'],
       ),
+    'getClassByCode' : IDL.Func([IDL.Text], [IDL.Opt(ClassGroup)], ['query']),
     'getProfile' : IDL.Func([], [IDL.Opt(PlayerProfile)], ['query']),
     'getPublicStats' : IDL.Func([], [PublicStats], ['query']),
     'getTopLeaderboardEntries' : IDL.Func(
@@ -118,12 +145,19 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getTotalVisits' : IDL.Func([], [IDL.Nat], ['query']),
     'getUnlockedLevels' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Nat)], ['query']),
+    'getWeeklyTopPlayers' : IDL.Func(
+        [],
+        [IDL.Vec(StudentRegistryEntry)],
+        ['query'],
+      ),
     'heartbeat' : IDL.Func([IDL.Text], [], []),
+    'joinClass' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'recordGameSession' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
         [],
         [],
       ),
+    'removeStudentFromClass' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'resetProgress' : IDL.Func([], [], []),
     'submitLeaderboardEntry' : IDL.Func(
         [IDL.Text, IDL.Nat8, IDL.Nat, IDL.Nat, IDL.Nat],

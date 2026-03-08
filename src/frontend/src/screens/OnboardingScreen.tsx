@@ -10,6 +10,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { NeonButton } from "../components/NeonButton";
+import { useJoinClass } from "../hooks/useQueries";
 
 interface OnboardingScreenProps {
   onComplete: (name: string, grade: number) => void;
@@ -27,9 +28,11 @@ export function OnboardingScreen({
   );
   const [name, setName] = useState("");
   const [grade, setGrade] = useState<string>("");
+  const [classCode, setClassCode] = useState("");
   const [nameError, setNameError] = useState("");
   const [submittedName, setSubmittedName] = useState("");
   const [submittedGrade, setSubmittedGrade] = useState(0);
+  const joinClass = useJoinClass();
 
   const handleSubmit = () => {
     if (!name.trim()) {
@@ -43,7 +46,31 @@ export function OnboardingScreen({
     const parsedGrade = Number.parseInt(grade);
     setSubmittedName(name.trim());
     setSubmittedGrade(parsedGrade);
+    // Store class code if entered
+    if (classCode.trim()) {
+      try {
+        localStorage.setItem("mm_class_code", classCode.trim().toUpperCase());
+      } catch {
+        /* noop */
+      }
+    }
     setStep("welcome");
+  };
+
+  const handleWelcomeContinue = async () => {
+    // If class code was entered, try joining the class
+    const code = classCode.trim().toUpperCase();
+    if (code) {
+      try {
+        await joinClass.mutateAsync({
+          joinCode: code,
+          studentName: submittedName,
+        });
+      } catch {
+        /* non-critical */
+      }
+    }
+    onComplete(submittedName, submittedGrade);
   };
 
   return (
@@ -393,7 +420,10 @@ export function OnboardingScreen({
                   Your Grade
                 </Label>
                 <Select value={grade} onValueChange={setGrade}>
-                  <SelectTrigger className="bg-secondary border-border focus:border-neon-cyan h-12 rounded-xl text-base">
+                  <SelectTrigger
+                    className="bg-secondary border-border focus:border-neon-cyan h-12 rounded-xl text-base"
+                    data-ocid="onboarding.grade.select"
+                  >
                     <SelectValue placeholder="Select your grade..." />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
@@ -408,6 +438,31 @@ export function OnboardingScreen({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Optional class code */}
+              <div>
+                <Label className="text-foreground/80 mb-2 block font-semibold">
+                  Class Code{" "}
+                  <span className="text-muted-foreground font-normal text-xs">
+                    (optional)
+                  </span>
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="e.g. MATH101"
+                  value={classCode}
+                  onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && grade && handleSubmit()
+                  }
+                  className="bg-secondary border-border focus:border-neon-cyan text-foreground placeholder:text-muted-foreground text-base h-12 rounded-xl uppercase tracking-widest"
+                  maxLength={20}
+                  data-ocid="onboarding.class_code.input"
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Ask your teacher for the class code
+                </p>
               </div>
             </div>
 
@@ -565,7 +620,7 @@ export function OnboardingScreen({
                 variant="cyan"
                 size="lg"
                 fullWidth
-                onClick={() => onComplete(submittedName, submittedGrade)}
+                onClick={handleWelcomeContinue}
                 data-ocid="welcome.primary_button"
               >
                 Enter the Universe! 🌌

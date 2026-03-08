@@ -9,6 +9,7 @@ import { LevelUpOverlay } from "../components/LevelUpOverlay";
 import type { Mistake } from "../components/MistakeReplay";
 import { MistakeReplay } from "../components/MistakeReplay";
 import { NeonButton } from "../components/NeonButton";
+import { ParticleEffect } from "../components/ParticleEffect";
 import { AdditionRocket } from "../components/games/AdditionRocket";
 import { AlgebraEscape } from "../components/games/AlgebraEscape";
 import {
@@ -1207,6 +1208,11 @@ export function GameScreen({
   const [hintActive, setHintActive] = useState(false);
   const timeAttackRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Particle effects
+  const [winParticle, setWinParticle] = useState(false);
+  const [comboParticle, setComboParticle] = useState(false);
+  const [levelupParticle, setLevelupParticle] = useState(false);
+
   const recordSession = useRecordGameSession();
   const queryClient = useQueryClient();
   const sounds = useSoundEffects(soundEnabled);
@@ -1252,6 +1258,7 @@ export function GameScreen({
       const next = c + 1;
       if (next >= 3) {
         setShowCombo(true);
+        setComboParticle(true);
       }
       return next;
     });
@@ -1326,7 +1333,10 @@ export function GameScreen({
       );
     }
 
-    if (res.score >= 70) sounds.playLevelComplete();
+    if (res.score >= 70) {
+      sounds.playLevelComplete();
+      setWinParticle(true);
+    }
     sounds.playXpEarned();
 
     // Track stats
@@ -1357,7 +1367,10 @@ export function GameScreen({
     if (newLevel > prevLevel) {
       setLevelUpValue(newLevel);
       setLevelUpXp(xpEarned);
-      setTimeout(() => setShowLevelUp(true), 600);
+      setTimeout(() => {
+        setShowLevelUp(true);
+        setLevelupParticle(true);
+      }, 600);
     }
 
     // Badge checking
@@ -1585,7 +1598,23 @@ export function GameScreen({
         onDone={() => setShowCombo(false)}
       />
 
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col relative">
+        {/* Particle effects overlay */}
+        <ParticleEffect
+          type="win"
+          active={winParticle}
+          onDone={() => setWinParticle(false)}
+        />
+        <ParticleEffect
+          type="combo"
+          active={comboParticle}
+          onDone={() => setComboParticle(false)}
+        />
+        <ParticleEffect
+          type="levelup"
+          active={levelupParticle}
+          onDone={() => setLevelupParticle(false)}
+        />
         {gameState === "level-select" && (
           <LevelSelectCard
             gameId={gameId}

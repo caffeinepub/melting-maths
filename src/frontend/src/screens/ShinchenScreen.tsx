@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { PlayerProfile } from "../backend.d";
 import { NeonButton } from "../components/NeonButton";
@@ -27,6 +27,62 @@ interface ChatMessage {
 }
 
 type AvatarState = "thinking" | "happy" | "celebrating";
+type ShinchenMood = "calm" | "excited" | "energized";
+
+function getShinchenMood(streakDays: number): ShinchenMood {
+  if (streakDays >= 7) return "energized";
+  if (streakDays >= 3) return "excited";
+  return "calm";
+}
+
+function getMoodEmoji(mood: ShinchenMood): string {
+  if (mood === "energized") return "🤩";
+  if (mood === "excited") return "😄";
+  return "😐";
+}
+
+function getMoodGlow(mood: ShinchenMood): string {
+  if (mood === "energized")
+    return "0 0 25px oklch(0.7 0.22 280 / 0.9), 0 0 50px oklch(0.78 0.2 195 / 0.6)";
+  if (mood === "excited")
+    return "0 0 20px oklch(0.7 0.22 280 / 0.6), 0 0 35px oklch(0.78 0.2 195 / 0.3)";
+  return "0 0 12px oklch(0.7 0.22 280 / 0.3)";
+}
+
+const WEEKLY_TIPS = [
+  "BODMAS/PEMDAS: Always solve Brackets first, then Orders (powers), then Division/Multiplication left to right, then Addition/Subtraction.",
+  "Fractions tip: To add fractions, find a common denominator first. 1/3 + 1/4 = 4/12 + 3/12 = 7/12",
+  "Algebra tip: Whatever you do to one side of an equation, do to the other. Keep it balanced!",
+  "Geometry tip: The angles in any triangle always add up to 180 degrees.",
+  "Multiplication trick: To multiply by 9, multiply by 10 then subtract the number. 9×7 = 70-7 = 63",
+  "Statistics tip: Mean = sum of all values ÷ count. Median = middle value when sorted.",
+  "Calculus tip: A derivative tells you the rate of change (slope) at any point on a curve.",
+];
+
+function getWeeklyTip(): string {
+  const weekIdx =
+    Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000)) % WEEKLY_TIPS.length;
+  return WEEKLY_TIPS[weekIdx];
+}
+
+function useTypedText(fullText: string, active: boolean, speedMs = 15): string {
+  const [displayed, setDisplayed] = useState("");
+  useEffect(() => {
+    if (!active) {
+      setDisplayed(fullText);
+      return;
+    }
+    setDisplayed("");
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayed(fullText.slice(0, i));
+      if (i >= fullText.length) clearInterval(interval);
+    }, speedMs);
+    return () => clearInterval(interval);
+  }, [fullText, active, speedMs]);
+  return displayed;
+}
 
 const QUICK_PROMPTS = [
   { label: "💡 Hint", message: "Give me a hint" },
@@ -63,8 +119,25 @@ function getAvatarState(text: string): AvatarState {
   return "thinking";
 }
 
-function ShinchenAvatar({ state }: { state: AvatarState }) {
-  const emoji = state === "thinking" ? "🤔" : state === "happy" ? "😊" : "🎉";
+function ShinchenAvatar({
+  state,
+  mood,
+}: { state: AvatarState; mood?: ShinchenMood }) {
+  const currentMood = mood ?? "calm";
+  let emoji: string;
+  if (state === "celebrating") {
+    emoji = "🎉";
+  } else if (state === "happy") {
+    emoji =
+      currentMood === "energized"
+        ? "🤩"
+        : currentMood === "excited"
+          ? "😄"
+          : "😊";
+  } else {
+    emoji = getMoodEmoji(currentMood);
+  }
+
   const animClass =
     state === "thinking"
       ? "shinchen-thinking"
@@ -72,23 +145,57 @@ function ShinchenAvatar({ state }: { state: AvatarState }) {
         ? "shinchen-happy"
         : "shinchen-celebrating";
 
+  const glowIntensity =
+    state === "celebrating"
+      ? getMoodGlow("energized")
+      : getMoodGlow(currentMood);
+
   return (
     <div className="relative">
-      <div
+      <motion.div
         className="w-14 h-14 rounded-full flex items-center justify-center text-3xl"
+        animate={
+          currentMood === "energized"
+            ? {
+                scale: [1, 1.04, 1],
+                boxShadow: [
+                  glowIntensity,
+                  glowIntensity.replace("0.9", "0.5"),
+                  glowIntensity,
+                ],
+              }
+            : {}
+        }
+        transition={{
+          duration: 1.8,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
         style={{
           background:
             "linear-gradient(135deg, oklch(0.2 0.06 280), oklch(0.15 0.04 265))",
-          border: `2px solid oklch(0.7 0.22 280 / ${state === "celebrating" ? "1" : "0.6"})`,
-          boxShadow:
-            state === "celebrating"
-              ? "0 0 25px oklch(0.7 0.22 280 / 0.8), 0 0 50px oklch(0.78 0.2 195 / 0.4)"
-              : "0 0 15px oklch(0.7 0.22 280 / 0.4)",
+          border: `2px solid oklch(0.7 0.22 280 / ${state === "celebrating" ? "1" : currentMood === "energized" ? "0.9" : "0.6"})`,
+          boxShadow: glowIntensity,
         }}
       >
         <span className={animClass}>{emoji}</span>
-      </div>
+      </motion.div>
       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-background" />
+      {/* Mood indicator */}
+      {currentMood !== "calm" && (
+        <div
+          className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-xs"
+          style={{
+            background:
+              currentMood === "energized"
+                ? "oklch(0.82 0.18 70)"
+                : "oklch(0.78 0.2 195)",
+            fontSize: "0.55rem",
+          }}
+        >
+          {currentMood === "energized" ? "⚡" : "✨"}
+        </div>
+      )}
     </div>
   );
 }
@@ -463,11 +570,215 @@ function DailyQuiz({ profile: _profile }: { profile: PlayerProfile }) {
   );
 }
 
+function TypedChatMessage({
+  msg,
+  useTyping,
+}: { msg: ChatMessage; useTyping: boolean }) {
+  const displayedText = useTypedText(msg.text, useTyping, 15);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.25 }}
+      className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+    >
+      {msg.role === "shinchen" && (
+        <div
+          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-base"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.15 0.04 280), oklch(0.1 0.02 265))",
+            border: "1px solid oklch(0.7 0.22 280 / 0.4)",
+          }}
+        >
+          🌟
+        </div>
+      )}
+      <div
+        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "shinchen" ? "rounded-tl-sm bg-secondary border border-border/50 text-foreground" : "rounded-tr-sm text-foreground"}`}
+        style={
+          msg.role === "user"
+            ? {
+                background:
+                  "linear-gradient(135deg, oklch(0.2 0.06 195), oklch(0.15 0.04 265))",
+                border: "1px solid oklch(0.78 0.2 195 / 0.4)",
+              }
+            : {}
+        }
+      >
+        {displayedText}
+        {useTyping && displayedText.length < msg.text.length && (
+          <span className="inline-block w-1 h-3 bg-neon-purple ml-0.5 animate-pulse" />
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Voice Narration ──────────────────────────────────────────────
+const VOICE_STORAGE_KEY = "mm_shinchen_voice";
+
+function getVoiceEnabled(): boolean {
+  try {
+    return localStorage.getItem(VOICE_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function setVoiceStorage(v: boolean) {
+  try {
+    localStorage.setItem(VOICE_STORAGE_KEY, v ? "true" : "false");
+  } catch {
+    /* noop */
+  }
+}
+
+function isSpeechSynthesisAvailable(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
+function getPreferredVoice(): SpeechSynthesisVoice | null {
+  if (!isSpeechSynthesisAvailable()) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return null;
+
+  // Prefer en-US female-leaning voices
+  const enUs = voices.filter((v) => v.lang === "en-US");
+  if (enUs.length === 0) return voices[0];
+
+  const femaleNames = ["samantha", "karen", "victoria", "female", "zira"];
+  for (const name of femaleNames) {
+    const found = enUs.find((v) => v.name.toLowerCase().includes(name));
+    if (found) return found;
+  }
+  // Fall back to index 1 if available (often female on most platforms)
+  return enUs[1] ?? enUs[0];
+}
+
+function speak(text: string) {
+  if (!isSpeechSynthesisAvailable()) return;
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  utterance.pitch = 1.1;
+  utterance.volume = 0.85;
+
+  const voice = getPreferredVoice();
+  if (voice) utterance.voice = voice;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function WeeklyTipTab() {
+  const tip = getWeeklyTip();
+  const weekIdx =
+    Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000)) % WEEKLY_TIPS.length;
+  const topics = [
+    "Order of Operations",
+    "Fractions",
+    "Algebra",
+    "Geometry",
+    "Multiplication",
+    "Statistics",
+    "Calculus",
+  ];
+  const topicIcons = ["📊", "🍕", "🔡", "📐", "✖️", "📈", "📉"];
+
+  return (
+    <div className="flex flex-col gap-4 py-2">
+      <div className="flex items-center gap-3">
+        <div className="text-3xl">💡</div>
+        <div>
+          <div className="font-display font-bold text-sm text-foreground">
+            This Week's Tip
+          </div>
+          <div className="text-muted-foreground text-xs">
+            Changes every Monday · Tip {weekIdx + 1}/{WEEKLY_TIPS.length}
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="rounded-2xl p-5"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.12 0.06 280 / 0.7), oklch(0.08 0.03 265 / 0.9))",
+          border: "1px solid oklch(0.7 0.22 280 / 0.35)",
+          boxShadow: "0 0 20px oklch(0.7 0.22 280 / 0.1)",
+        }}
+      >
+        <div
+          className="font-display text-xs font-bold tracking-widest mb-3 flex items-center gap-2"
+          style={{ color: "oklch(0.7 0.22 280)" }}
+        >
+          <span>{topicIcons[weekIdx]}</span>
+          {topics[weekIdx].toUpperCase()}
+        </div>
+        <p className="text-foreground text-sm leading-relaxed font-semibold">
+          {tip}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="font-display text-xs font-bold text-muted-foreground tracking-widest">
+          ALL TOPICS
+        </div>
+        {topics.map((topic, i) => (
+          <div
+            key={topic}
+            className="flex items-center gap-3 p-3 rounded-xl"
+            style={{
+              background:
+                i === weekIdx
+                  ? "oklch(0.7 0.22 280 / 0.12)"
+                  : "oklch(0.1 0.02 265 / 0.4)",
+              border:
+                i === weekIdx
+                  ? "1px solid oklch(0.7 0.22 280 / 0.4)"
+                  : "1px solid oklch(0.2 0.03 270 / 0.3)",
+            }}
+          >
+            <span className="text-lg">{topicIcons[i]}</span>
+            <span
+              className="text-sm font-semibold"
+              style={{
+                color:
+                  i === weekIdx ? "oklch(0.8 0.18 280)" : "oklch(0.6 0.05 270)",
+              }}
+            >
+              {topic}
+            </span>
+            {i === weekIdx && (
+              <span
+                className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: "oklch(0.7 0.22 280 / 0.2)",
+                  color: "oklch(0.8 0.18 280)",
+                }}
+              >
+                This week ✓
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
+  const mood = getShinchenMood(Number(profile.streakDays));
   const greeting =
     SHINCHEN_GREETINGS[Math.floor(Math.random() * SHINCHEN_GREETINGS.length)];
   const [messages, setMessages] = useState<ChatMessage[]>([
-    makeMsg("shinchen", `Hey ${profile.name}! 👋 ${greeting}`),
+    makeMsg(
+      "shinchen",
+      `Hey ${profile.name}! ${getMoodEmoji(mood)} ${greeting}`,
+    ),
     makeMsg(
       "shinchen",
       `You're in Grade ${profile.grade} with ${Number(profile.xp)} XP. Looking great! How can I help you today? 😊`,
@@ -476,8 +787,44 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [avatarState, setAvatarState] = useState<AvatarState>("thinking");
+  const [lastMsgId, setLastMsgId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Voice narration state (persisted in localStorage, no re-render on speech events)
+  const [voiceEnabled, setVoiceEnabledState] = useState(getVoiceEnabled);
+  const speechAvailable = isSpeechSynthesisAvailable();
+  const voiceEnabledRef = useRef(voiceEnabled);
+
+  const toggleVoice = useCallback(() => {
+    const next = !voiceEnabledRef.current;
+    voiceEnabledRef.current = next;
+    setVoiceEnabledState(next);
+    setVoiceStorage(next);
+    if (!next) {
+      // Stop any ongoing speech when toggled off
+      if (isSpeechSynthesisAvailable()) window.speechSynthesis.cancel();
+    }
+    toast.success(next ? "🔊 Shinchen voice ON" : "🔇 Shinchen voice OFF");
+  }, []);
+
+  // Load voices when available (needed for some browsers that lazy-load)
+  useEffect(() => {
+    if (!isSpeechSynthesisAvailable()) return;
+    const handleVoicesChanged = () => {
+      // Forces a voice list refresh - no state update needed
+    };
+    window.speechSynthesis.addEventListener(
+      "voiceschanged",
+      handleVoicesChanged,
+    );
+    return () => {
+      window.speechSynthesis.removeEventListener(
+        "voiceschanged",
+        handleVoicesChanged,
+      );
+    };
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollRef is stable
   useEffect(() => {
@@ -534,10 +881,21 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
         response = getShinchenResponse(text, profile.weakTopics);
       }
 
-      setMessages((prev) => [...prev, makeMsg("shinchen", response)]);
+      const newMsg = makeMsg("shinchen", response);
+      setMessages((prev) => [...prev, newMsg]);
+      setLastMsgId(newMsg.id);
       setIsTyping(false);
       setAvatarState(getAvatarState(response));
       setTimeout(() => setAvatarState("thinking"), 3000);
+
+      // Speak the response if voice is enabled
+      if (voiceEnabledRef.current) {
+        // Strip emojis for cleaner TTS
+        const cleanText = response
+          .replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]/gu, "")
+          .trim();
+        speak(cleanText);
+      }
     }, delay);
   };
 
@@ -548,20 +906,69 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
           type="button"
           onClick={onBack}
           className="text-muted-foreground hover:text-foreground text-sm"
+          data-ocid="shinchen.back.button"
         >
           ← Back
         </button>
         <div className="flex items-center gap-3 flex-1">
-          <ShinchenAvatar state={avatarState} />
+          <ShinchenAvatar state={avatarState} mood={mood} />
           <div>
             <div className="font-display font-bold text-base text-glow-purple">
               SHINCHEN
             </div>
-            <div className="text-muted-foreground text-xs">
-              Your Math AI Buddy • Online
+            <div className="text-muted-foreground text-xs flex items-center gap-1">
+              Your Math AI Buddy •{" "}
+              <span
+                style={{
+                  color:
+                    mood === "energized"
+                      ? "oklch(0.82 0.18 70)"
+                      : mood === "excited"
+                        ? "oklch(0.78 0.2 195)"
+                        : "oklch(0.72 0.22 155)",
+                }}
+              >
+                {mood === "energized"
+                  ? "⚡ Super Energized"
+                  : mood === "excited"
+                    ? "✨ Excited"
+                    : "😐 Calm"}
+              </span>
             </div>
           </div>
         </div>
+
+        {/* Voice toggle (only shown if speech synthesis is available) */}
+        {speechAvailable && (
+          <button
+            type="button"
+            onClick={toggleVoice}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all hover:scale-110 flex-shrink-0"
+            style={
+              voiceEnabled
+                ? {
+                    background: "oklch(0.2 0.06 280 / 0.8)",
+                    border: "1px solid oklch(0.7 0.22 280 / 0.7)",
+                    color: "oklch(0.85 0.18 280)",
+                    boxShadow: "0 0 10px oklch(0.7 0.22 280 / 0.35)",
+                  }
+                : {
+                    background: "oklch(0.12 0.02 265)",
+                    border: "1px solid oklch(0.3 0.04 270 / 0.5)",
+                    color: "oklch(0.55 0.04 270)",
+                  }
+            }
+            aria-label={voiceEnabled ? "Turn off voice" : "Turn on voice"}
+            title={
+              voiceEnabled
+                ? "Voice ON – click to mute"
+                : "Voice OFF – click to enable"
+            }
+            data-ocid="shinchen.voice.toggle"
+          >
+            {voiceEnabled ? "🔊" : "🔇"}
+          </button>
+        )}
       </header>
 
       <Tabs defaultValue="chat" className="flex-1 flex flex-col">
@@ -569,20 +976,30 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
           <TabsTrigger
             value="chat"
             className="flex-1 data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan text-xs font-bold"
+            data-ocid="shinchen.chat.tab"
           >
             💬 Chat
           </TabsTrigger>
           <TabsTrigger
             value="quiz"
             className="flex-1 data-[state=active]:bg-neon-purple/20 data-[state=active]:text-neon-purple text-xs font-bold"
+            data-ocid="shinchen.quiz.tab"
           >
-            🧪 Daily Quiz
+            🧪 Quiz
           </TabsTrigger>
           <TabsTrigger
             value="drill"
             className="flex-1 data-[state=active]:bg-neon-blue/20 data-[state=active]:text-neon-blue text-xs font-bold"
+            data-ocid="shinchen.drill.tab"
           >
             💪 Drill
+          </TabsTrigger>
+          <TabsTrigger
+            value="tip"
+            className="flex-1 data-[state=active]:bg-neon-purple/20 data-[state=active]:text-neon-purple text-xs font-bold"
+            data-ocid="shinchen.tip.tab"
+          >
+            💡 Tip
           </TabsTrigger>
         </TabsList>
 
@@ -611,42 +1028,17 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
           >
             <div className="flex flex-col gap-3">
               <AnimatePresence initial={false}>
-                {messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: 0.25 }}
-                    className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                  >
-                    {msg.role === "shinchen" && (
-                      <div
-                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-base"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, oklch(0.15 0.04 280), oklch(0.1 0.02 265))",
-                          border: "1px solid oklch(0.7 0.22 280 / 0.4)",
-                        }}
-                      >
-                        🌟
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "shinchen" ? "rounded-tl-sm bg-secondary border border-border/50 text-foreground" : "rounded-tr-sm text-foreground"}`}
-                      style={
-                        msg.role === "user"
-                          ? {
-                              background:
-                                "linear-gradient(135deg, oklch(0.2 0.06 195), oklch(0.15 0.04 265))",
-                              border: "1px solid oklch(0.78 0.2 195 / 0.4)",
-                            }
-                          : {}
-                      }
-                    >
-                      {msg.text}
-                    </div>
-                  </motion.div>
-                ))}
+                {messages.map((msg) => {
+                  const isLatestShinchen =
+                    msg.role === "shinchen" && msg.id === lastMsgId;
+                  return (
+                    <TypedChatMessage
+                      key={msg.id}
+                      msg={msg}
+                      useTyping={isLatestShinchen}
+                    />
+                  );
+                })}
               </AnimatePresence>
 
               {isTyping && (
@@ -725,6 +1117,13 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
           className="flex-1 px-4 pb-8 mt-0 overflow-y-auto"
         >
           <DrillModes profile={profile} />
+        </TabsContent>
+
+        <TabsContent
+          value="tip"
+          className="flex-1 px-4 pb-8 mt-0 overflow-y-auto"
+        >
+          <WeeklyTipTab />
         </TabsContent>
       </Tabs>
     </div>

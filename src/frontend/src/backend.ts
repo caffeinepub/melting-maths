@@ -103,6 +103,13 @@ export interface StudentRegistryEntry {
     lastActive: Time;
 }
 export type Time = bigint;
+export interface ClassGroup {
+    id: string;
+    joinCode: string;
+    name: string;
+    createdAt: Time;
+    memberNames: Array<string>;
+}
 export interface PublicStats {
     activeUsers: bigint;
     leaderboard: Array<LeaderboardEntry>;
@@ -118,23 +125,43 @@ export interface PlayerProfile {
     grade: number;
 }
 export interface backendInterface {
+    createClass(name: string, joinCode: string): Promise<string>;
     createOrUpdateProfile(name: string, grade: number): Promise<void>;
     getActiveUsers(): Promise<bigint>;
+    getAllClasses(): Promise<Array<ClassGroup>>;
     getAllStudentProfiles(): Promise<Array<StudentRegistryEntry>>;
+    getClassByCode(joinCode: string): Promise<ClassGroup | null>;
     getProfile(): Promise<PlayerProfile | null>;
     getPublicStats(): Promise<PublicStats>;
     getTopLeaderboardEntries(): Promise<Array<LeaderboardEntry>>;
     getTotalVisits(): Promise<bigint>;
     getUnlockedLevels(gameId: string): Promise<Array<bigint>>;
+    getWeeklyTopPlayers(): Promise<Array<StudentRegistryEntry>>;
     heartbeat(name: string): Promise<void>;
+    joinClass(joinCode: string, studentName: string): Promise<boolean>;
     recordGameSession(gameId: string, level: bigint, score: bigint, correctAnswers: bigint, incorrectAnswers: bigint, topicId: string): Promise<void>;
+    removeStudentFromClass(joinCode: string, studentName: string): Promise<void>;
     resetProgress(): Promise<void>;
     submitLeaderboardEntry(name: string, grade: number, xp: bigint, streakDays: bigint, badgeCount: bigint): Promise<void>;
     trackVisit(): Promise<void>;
 }
-import type { PlayerProfile as _PlayerProfile } from "./declarations/backend.did.d.ts";
+import type { ClassGroup as _ClassGroup, PlayerProfile as _PlayerProfile } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async createClass(arg0: string, arg1: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createClass(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createClass(arg0, arg1);
+            return result;
+        }
+    }
     async createOrUpdateProfile(arg0: string, arg1: number): Promise<void> {
         if (this.processError) {
             try {
@@ -163,6 +190,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getAllClasses(): Promise<Array<ClassGroup>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllClasses();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllClasses();
+            return result;
+        }
+    }
     async getAllStudentProfiles(): Promise<Array<StudentRegistryEntry>> {
         if (this.processError) {
             try {
@@ -177,18 +218,32 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getProfile(): Promise<PlayerProfile | null> {
+    async getClassByCode(arg0: string): Promise<ClassGroup | null> {
         if (this.processError) {
             try {
-                const result = await this.actor.getProfile();
+                const result = await this.actor.getClassByCode(arg0);
                 return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getProfile();
+            const result = await this.actor.getClassByCode(arg0);
             return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getProfile(): Promise<PlayerProfile | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getProfile();
+                return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getProfile();
+            return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
         }
     }
     async getPublicStats(): Promise<PublicStats> {
@@ -247,6 +302,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getWeeklyTopPlayers(): Promise<Array<StudentRegistryEntry>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getWeeklyTopPlayers();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getWeeklyTopPlayers();
+            return result;
+        }
+    }
     async heartbeat(arg0: string): Promise<void> {
         if (this.processError) {
             try {
@@ -261,6 +330,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async joinClass(arg0: string, arg1: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.joinClass(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.joinClass(arg0, arg1);
+            return result;
+        }
+    }
     async recordGameSession(arg0: string, arg1: bigint, arg2: bigint, arg3: bigint, arg4: bigint, arg5: string): Promise<void> {
         if (this.processError) {
             try {
@@ -272,6 +355,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.recordGameSession(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async removeStudentFromClass(arg0: string, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.removeStudentFromClass(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.removeStudentFromClass(arg0, arg1);
             return result;
         }
     }
@@ -318,7 +415,10 @@ export class Backend implements backendInterface {
         }
     }
 }
-function from_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_PlayerProfile]): PlayerProfile | null {
+function from_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ClassGroup]): ClassGroup | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_PlayerProfile]): PlayerProfile | null {
     return value.length === 0 ? null : value[0];
 }
 export interface CreateActorOptions {

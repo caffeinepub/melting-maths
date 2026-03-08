@@ -10,6 +10,13 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface ClassGroup {
+  'id' : string,
+  'joinCode' : string,
+  'name' : string,
+  'createdAt' : Time,
+  'memberNames' : Array<string>,
+}
 export interface LeaderboardEntry {
   'xp' : bigint,
   'name' : string,
@@ -39,19 +46,25 @@ export interface StudentRegistryEntry {
 }
 export type Time = bigint;
 export interface _SERVICE {
+  'createClass' : ActorMethod<[string, string], string>,
   'createOrUpdateProfile' : ActorMethod<[string, number], undefined>,
   'getActiveUsers' : ActorMethod<[], bigint>,
+  'getAllClasses' : ActorMethod<[], Array<ClassGroup>>,
   'getAllStudentProfiles' : ActorMethod<[], Array<StudentRegistryEntry>>,
+  'getClassByCode' : ActorMethod<[string], [] | [ClassGroup]>,
   'getProfile' : ActorMethod<[], [] | [PlayerProfile]>,
   'getPublicStats' : ActorMethod<[], PublicStats>,
   'getTopLeaderboardEntries' : ActorMethod<[], Array<LeaderboardEntry>>,
   'getTotalVisits' : ActorMethod<[], bigint>,
   'getUnlockedLevels' : ActorMethod<[string], Array<bigint>>,
+  'getWeeklyTopPlayers' : ActorMethod<[], Array<StudentRegistryEntry>>,
   'heartbeat' : ActorMethod<[string], undefined>,
+  'joinClass' : ActorMethod<[string, string], boolean>,
   'recordGameSession' : ActorMethod<
     [string, bigint, bigint, bigint, bigint, string],
     undefined
   >,
+  'removeStudentFromClass' : ActorMethod<[string, string], undefined>,
   'resetProgress' : ActorMethod<[], undefined>,
   'submitLeaderboardEntry' : ActorMethod<
     [string, number, bigint, bigint, bigint],

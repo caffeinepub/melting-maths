@@ -267,11 +267,62 @@ const ALL_BADGES: Array<{
 ];
 
 const AVATARS = [
-  { id: "brain", icon: "🧠", label: "Brain", xpRequired: 0 },
-  { id: "rocket", icon: "🚀", label: "Rocket", xpRequired: 200 },
-  { id: "wizard", icon: "🧙", label: "Wizard", xpRequired: 1000 },
-  { id: "star", icon: "⭐", label: "Star", xpRequired: 500 },
-  { id: "ninja", icon: "🥷", label: "Ninja", xpRequired: 2000 },
+  {
+    id: "brain",
+    icon: "🧠",
+    label: "Brain",
+    xpRequired: 0,
+    badgeRequired: null,
+  },
+  {
+    id: "rocket",
+    icon: "🚀",
+    label: "Rocket",
+    xpRequired: 200,
+    badgeRequired: null,
+  },
+  {
+    id: "wizard",
+    icon: "🧙",
+    label: "Wizard",
+    xpRequired: 1000,
+    badgeRequired: null,
+  },
+  {
+    id: "star",
+    icon: "⭐",
+    label: "Star",
+    xpRequired: 500,
+    badgeRequired: null,
+  },
+  {
+    id: "ninja",
+    icon: "🥷",
+    label: "Ninja",
+    xpRequired: 2000,
+    badgeRequired: null,
+  },
+  {
+    id: "crown",
+    icon: "👑",
+    label: "Crown",
+    xpRequired: 2500,
+    badgeRequired: "boss_slayer_ultimate",
+  },
+  {
+    id: "dragon",
+    icon: "🐉",
+    label: "Dragon",
+    xpRequired: 3000,
+    badgeRequired: null,
+  },
+  {
+    id: "galaxy",
+    icon: "🌌",
+    label: "Galaxy",
+    xpRequired: 5000,
+    badgeRequired: null,
+  },
 ];
 
 const THEMES = [
@@ -357,6 +408,246 @@ function setColorModeStorage(mode: string) {
     /* noop */
   }
 }
+// --- Title system ---
+const PROFILE_COLORS = [
+  { id: "cyan", label: "Cyan", hex: "#06b6d4", oklch: "oklch(0.78 0.2 195)" },
+  {
+    id: "purple",
+    label: "Purple",
+    hex: "#a855f7",
+    oklch: "oklch(0.7 0.22 280)",
+  },
+  { id: "pink", label: "Pink", hex: "#ec4899", oklch: "oklch(0.72 0.28 340)" },
+  { id: "gold", label: "Gold", hex: "#f59e0b", oklch: "oklch(0.82 0.18 70)" },
+  {
+    id: "green",
+    label: "Green",
+    hex: "#10b981",
+    oklch: "oklch(0.72 0.22 155)",
+  },
+];
+
+function getPlayerTitle(
+  xp: number,
+  streakDays: number,
+  badges: string[],
+): string {
+  if (xp >= 2500) return "Math Genius";
+  if (xp >= 1000) return "XP Legend";
+  if (badges.includes("boss_slayer_ultimate")) return "Boss Slayer";
+  if (streakDays >= 7) return "Streak King";
+  if (xp >= 500) return "Math Wizard";
+  return "Apprentice";
+}
+
+function getTitleColor(title: string): string {
+  switch (title) {
+    case "Math Genius":
+      return "oklch(0.82 0.18 70)";
+    case "XP Legend":
+      return "oklch(0.7 0.22 280)";
+    case "Boss Slayer":
+      return "oklch(0.7 0.22 20)";
+    case "Streak King":
+      return "oklch(0.82 0.18 70)";
+    case "Math Wizard":
+      return "oklch(0.78 0.2 195)";
+    default:
+      return "oklch(0.6 0.06 270)";
+  }
+}
+
+function getProfileColor(): string {
+  try {
+    return localStorage.getItem("mm_profile_color") ?? "cyan";
+  } catch {
+    return "cyan";
+  }
+}
+function setProfileColorStorage(id: string) {
+  try {
+    localStorage.setItem("mm_profile_color", id);
+  } catch {
+    /* noop */
+  }
+}
+
+// ─── Brag Card Canvas Generator ──────────────────────────────────
+function downloadBragCard({
+  name,
+  grade,
+  title,
+  xp,
+  streak,
+  badges,
+  avatarIcon,
+}: {
+  name: string;
+  grade: number;
+  title: string;
+  xp: number;
+  streak: number;
+  badges: string[];
+  avatarIcon: string;
+}) {
+  const W = 600;
+  const H = 340;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  // Background
+  ctx.fillStyle = "#0a0a1a";
+  ctx.fillRect(0, 0, W, H);
+
+  // Gradient overlay
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "rgba(6, 182, 212, 0.08)");
+  grad.addColorStop(0.5, "rgba(124, 58, 237, 0.04)");
+  grad.addColorStop(1, "rgba(6, 182, 212, 0.06)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Border
+  ctx.strokeStyle = "rgba(6, 182, 212, 0.5)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(4, 4, W - 8, H - 8);
+
+  // Inner accent border
+  ctx.strokeStyle = "rgba(124, 58, 237, 0.2)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(10, 10, W - 20, H - 20);
+
+  // MELTING MATHS header
+  ctx.font = "bold 13px monospace";
+  ctx.fillStyle = "rgba(6, 182, 212, 0.7)";
+  ctx.textAlign = "center";
+  ctx.letterSpacing = "4px";
+  ctx.fillText("MELTING MATHS", W / 2, 38);
+
+  // Decorative line under header
+  ctx.beginPath();
+  const lineGrad = ctx.createLinearGradient(80, 0, W - 80, 0);
+  lineGrad.addColorStop(0, "transparent");
+  lineGrad.addColorStop(0.5, "rgba(6, 182, 212, 0.6)");
+  lineGrad.addColorStop(1, "transparent");
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth = 1;
+  ctx.moveTo(80, 48);
+  ctx.lineTo(W - 80, 48);
+  ctx.stroke();
+
+  // Avatar emoji
+  ctx.font = "52px serif";
+  ctx.textAlign = "left";
+  ctx.letterSpacing = "0px";
+  ctx.fillText(avatarIcon, 36, 120);
+
+  // Player name
+  ctx.font = "bold 32px serif";
+  ctx.fillStyle = "#e2e8f0";
+  ctx.textAlign = "left";
+  ctx.fillText(name, 110, 110);
+
+  // Title pill background
+  ctx.fillStyle = "rgba(6, 182, 212, 0.15)";
+  ctx.beginPath();
+  ctx.roundRect(110, 118, ctx.measureText(title).width + 24, 26, 6);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(6, 182, 212, 0.4)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.font = "bold 14px monospace";
+  ctx.fillStyle = "rgba(6, 182, 212, 0.9)";
+  ctx.letterSpacing = "2px";
+  ctx.fillText(title.toUpperCase(), 122, 135);
+
+  // Grade
+  ctx.font = "13px sans-serif";
+  ctx.fillStyle = "rgba(148, 163, 184, 0.8)";
+  ctx.letterSpacing = "0px";
+  ctx.fillText(`Grade ${grade}`, 112, 160);
+
+  // Stats row
+  const statsY = 210;
+  const stats = [
+    { label: "XP", value: xp.toLocaleString(), color: "#22d3ee" },
+    { label: "STREAK", value: `${streak}🔥`, color: "#fbbf24" },
+    { label: "BADGES", value: String(badges.length), color: "#a78bfa" },
+  ];
+
+  stats.forEach((stat, idx) => {
+    const x = 60 + idx * 180;
+    // Stat card bg
+    ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+    ctx.beginPath();
+    ctx.roundRect(x - 14, statsY - 32, 120, 56, 10);
+    ctx.fill();
+    ctx.strokeStyle = `${stat.color}40`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Value
+    ctx.font = "bold 22px monospace";
+    ctx.fillStyle = stat.color;
+    ctx.textAlign = "center";
+    ctx.letterSpacing = "0px";
+    ctx.fillText(stat.value, x + 46, statsY);
+
+    // Label
+    ctx.font = "10px monospace";
+    ctx.fillStyle = "rgba(100, 116, 139, 0.9)";
+    ctx.letterSpacing = "2px";
+    ctx.fillText(stat.label, x + 46, statsY + 18);
+  });
+
+  // Top 3 badges
+  const earnedBadges = ALL_BADGES.filter((b) => badges.includes(b.id)).slice(
+    0,
+    3,
+  );
+  if (earnedBadges.length > 0) {
+    const badgeY = 280;
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = "rgba(100, 116, 139, 0.7)";
+    ctx.textAlign = "left";
+    ctx.letterSpacing = "1px";
+    ctx.fillText("TOP BADGES:", 36, badgeY);
+
+    earnedBadges.forEach((badge, bi) => {
+      const bx = 148 + bi * 140;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.6)";
+      ctx.beginPath();
+      ctx.roundRect(bx - 4, badgeY - 16, 130, 26, 6);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(6, 182, 212, 0.2)";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.font = "13px serif";
+      ctx.fillStyle = "#e2e8f0";
+      ctx.textAlign = "left";
+      ctx.letterSpacing = "0px";
+      ctx.fillText(`${badge.icon} ${badge.label}`, bx + 2, badgeY);
+    });
+  }
+
+  // Footer
+  ctx.font = "10px monospace";
+  ctx.fillStyle = "rgba(51, 65, 85, 0.8)";
+  ctx.textAlign = "center";
+  ctx.letterSpacing = "1px";
+  ctx.fillText("caffeine.ai • melting-maths", W / 2, H - 14);
+
+  // Download
+  const link = document.createElement("a");
+  link.download = "melting-maths-card.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
 function getStreakFreezeTokens(): number {
   try {
     return Number.parseInt(
@@ -530,6 +821,7 @@ export function ProfileScreen({
   const [selectedAvatar, setSelectedAvatar] = useState(getAvatar);
   const [selectedTheme, setSelectedTheme] = useState(getTheme);
   const [colorMode, setColorMode] = useState(getColorMode);
+  const [profileColorId, setProfileColorId] = useState(getProfileColor);
   const stats = getLocalStats();
   const gradeGroup = getGradeGroup(profile.grade);
   const canDownloadCert = checkCertificateEligibility(gradeGroup);
@@ -537,6 +829,17 @@ export function ProfileScreen({
   const [showConfetti, setShowConfetti] = useState(false);
   const freezeTokens = getStreakFreezeTokens();
   const [showGoodbye, setShowGoodbye] = useState(false);
+
+  const playerTitle = getPlayerTitle(xpNum, streakNum, profile.badges);
+  const titleColor = getTitleColor(playerTitle);
+  const profileAccentColor =
+    PROFILE_COLORS.find((c) => c.id === profileColorId)?.oklch ??
+    PROFILE_COLORS[0].oklch;
+
+  const handleProfileColorChange = (id: string) => {
+    setProfileColorId(id);
+    setProfileColorStorage(id);
+  };
 
   // Sound settings
   const [soundSettings, setSoundSettings] = useState(getSoundSettings);
@@ -578,7 +881,12 @@ export function ProfileScreen({
 
   const handleAvatarChange = (id: string) => {
     const av = AVATARS.find((a) => a.id === id);
-    if (!av || xpNum < av.xpRequired) return;
+    if (!av) return;
+    const xpUnlocked = xpNum >= av.xpRequired;
+    const badgeUnlocked = av.badgeRequired
+      ? profile.badges.includes(av.badgeRequired)
+      : true;
+    if (!xpUnlocked && !badgeUnlocked) return;
     setSelectedAvatar(id);
     setAvatarStorage(id);
   };
@@ -799,8 +1107,8 @@ export function ProfileScreen({
                 style={{
                   background:
                     "linear-gradient(135deg, oklch(0.2 0.06 195), oklch(0.15 0.04 280))",
-                  border: "2px solid oklch(0.78 0.2 195 / 0.5)",
-                  boxShadow: "0 0 20px oklch(0.78 0.2 195 / 0.3)",
+                  border: `2px solid ${profileAccentColor.replace(")", " / 0.6)")}`,
+                  boxShadow: `0 0 20px ${profileAccentColor.replace(")", " / 0.4)")}`,
                 }}
               >
                 {currentAvatar.icon}
@@ -962,6 +1270,51 @@ export function ProfileScreen({
                     </span>
                   )}
                 </div>
+
+                {/* Title pill */}
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                  style={{
+                    background: `${titleColor.replace(")", " / 0.15)")}`,
+                    border: `1px solid ${titleColor.replace(")", " / 0.4)")}`,
+                    color: titleColor,
+                    boxShadow: `0 0 8px ${titleColor.replace(")", " / 0.25)")}`,
+                  }}
+                  data-ocid="profile.title.card"
+                >
+                  👑 {playerTitle}
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Color Picker */}
+            <div className="mb-4">
+              <div className="text-xs text-muted-foreground font-semibold mb-2 uppercase tracking-wider">
+                Profile Accent Color
+              </div>
+              <div className="flex gap-2">
+                {PROFILE_COLORS.map((color) => (
+                  <button
+                    key={color.id}
+                    type="button"
+                    onClick={() => handleProfileColorChange(color.id)}
+                    className="w-8 h-8 rounded-full transition-all hover:scale-110"
+                    style={{
+                      background: color.oklch,
+                      boxShadow:
+                        profileColorId === color.id
+                          ? `0 0 12px ${color.oklch}, 0 0 24px ${color.oklch.replace(")", " / 0.4)")}`
+                          : `0 0 6px ${color.oklch.replace(")", " / 0.3)")}`,
+                      border:
+                        profileColorId === color.id
+                          ? "3px solid white"
+                          : "2px solid transparent",
+                    }}
+                    title={color.label}
+                    aria-label={`Profile color: ${color.label}`}
+                    data-ocid={`profile.color.button.${color.id}`}
+                  />
+                ))}
               </div>
             </div>
 
@@ -983,8 +1336,37 @@ export function ProfileScreen({
               </div>
             </div>
 
-            {/* Grade Certificate */}
+            {/* Brag Card Download */}
             <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  downloadBragCard({
+                    name: profile.name,
+                    grade: profile.grade,
+                    title: playerTitle,
+                    xp: xpNum,
+                    streak: streakNum,
+                    badges: profile.badges,
+                    avatarIcon: currentAvatar.icon,
+                  });
+                }}
+                className="w-full py-3 rounded-xl font-display font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.14 0.05 280 / 0.8), oklch(0.1 0.03 265))",
+                  border: "1px solid oklch(0.7 0.22 280 / 0.5)",
+                  color: "oklch(0.85 0.15 280)",
+                  boxShadow: "0 0 14px oklch(0.7 0.22 280 / 0.15)",
+                }}
+                data-ocid="profile.brag_card.button"
+              >
+                🎴 Download Brag Card
+              </button>
+            </div>
+
+            {/* Grade Certificate */}
+            <div className="mt-3">
               <button
                 type="button"
                 onClick={() => canDownloadCert && setShowCert(!showCert)}
@@ -1042,9 +1424,13 @@ export function ProfileScreen({
             <h2 className="font-display font-bold text-base text-foreground mb-3">
               🎭 Avatar
             </h2>
-            <div className="flex gap-2 flex-wrap">
+            <div className="grid grid-cols-4 gap-2">
               {AVATARS.map((av) => {
-                const isUnlocked = xpNum >= av.xpRequired;
+                const xpUnlocked = xpNum >= av.xpRequired;
+                const badgeUnlocked = av.badgeRequired
+                  ? profile.badges.includes(av.badgeRequired)
+                  : true;
+                const isUnlocked = xpUnlocked || badgeUnlocked;
                 const isSelected = selectedAvatar === av.id;
                 return (
                   <button
@@ -1052,22 +1438,27 @@ export function ProfileScreen({
                     type="button"
                     onClick={() => handleAvatarChange(av.id)}
                     disabled={!isUnlocked}
-                    className={`flex-1 min-w-[64px] flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all relative
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all relative
                       ${isSelected ? "border-2 border-neon-cyan bg-neon-cyan/10" : "border border-border/50 bg-secondary/50"}
                       ${!isUnlocked ? "opacity-50 cursor-not-allowed" : "hover:border-neon-cyan/60 cursor-pointer"}`}
                     data-ocid={`profile.avatar.button.${av.id}`}
                   >
                     <span className="text-2xl">{av.icon}</span>
-                    <span className="text-xs font-semibold text-foreground">
+                    <span className="text-xs font-semibold text-foreground truncate w-full text-center">
                       {av.label}
                     </span>
                     {!isUnlocked && (
-                      <span className="text-xs text-muted-foreground">
-                        {av.xpRequired} XP
+                      <span className="text-xs text-muted-foreground leading-tight text-center">
+                        {av.badgeRequired && !xpUnlocked
+                          ? `${av.xpRequired} XP`
+                          : `${av.xpRequired} XP`}
                       </span>
                     )}
                     {!isUnlocked && (
                       <span className="absolute top-1 right-1 text-xs">🔒</span>
+                    )}
+                    {isSelected && (
+                      <span className="absolute top-1 left-1 text-xs">✓</span>
                     )}
                   </button>
                 );

@@ -1,64 +1,130 @@
 import { useMemo } from "react";
 
-const SYMBOLS = [
-  "+",
-  "−",
-  "×",
-  "÷",
-  "=",
-  "π",
-  "√",
-  "∑",
-  "∞",
-  "²",
-  "³",
-  "Δ",
-  "∫",
-  "≈",
-  "≠",
-  "α",
-  "β",
-  "θ",
-  "±",
-  "∂",
-  "λ",
-  "φ",
-  "σ",
-  "μ",
-];
+const SYMBOLS = ["+", "−", "×", "π", "√", "∞", "Δ", "∫", "θ", "±", "²", "λ"];
 
 const COLORS = [
-  "oklch(0.78 0.2 195 / 0.45)",
-  "oklch(0.7 0.22 280 / 0.4)",
-  "oklch(0.65 0.22 255 / 0.4)",
-  "oklch(0.75 0.2 155 / 0.35)",
-  "oklch(0.72 0.22 330 / 0.3)",
+  "oklch(0.78 0.2 195 / 0.35)",
+  "oklch(0.7 0.22 280 / 0.3)",
+  "oklch(0.65 0.22 255 / 0.3)",
+  "oklch(0.75 0.2 155 / 0.28)",
+  "oklch(0.72 0.22 330 / 0.25)",
 ];
 
-interface SymbolItem {
-  id: number;
-  symbol: string;
-  left: string;
-  size: string;
-  duration: string;
-  delay: string;
-  color: string;
-  layer: "slow" | "fast" | "alt";
-}
+// Pre-computed static positions -- no Math.sin or random on render
+const STATIC_SYMBOLS = [
+  {
+    id: 0,
+    left: "4%",
+    size: "14px",
+    duration: "22s",
+    delay: "0s",
+    color: COLORS[0],
+    alt: false,
+  },
+  {
+    id: 1,
+    left: "12%",
+    size: "18px",
+    duration: "28s",
+    delay: "4s",
+    color: COLORS[1],
+    alt: true,
+  },
+  {
+    id: 2,
+    left: "21%",
+    size: "12px",
+    duration: "20s",
+    delay: "8s",
+    color: COLORS[2],
+    alt: false,
+  },
+  {
+    id: 3,
+    left: "31%",
+    size: "22px",
+    duration: "32s",
+    delay: "2s",
+    color: COLORS[3],
+    alt: false,
+  },
+  {
+    id: 4,
+    left: "42%",
+    size: "16px",
+    duration: "25s",
+    delay: "11s",
+    color: COLORS[4],
+    alt: true,
+  },
+  {
+    id: 5,
+    left: "53%",
+    size: "14px",
+    duration: "29s",
+    delay: "6s",
+    color: COLORS[0],
+    alt: false,
+  },
+  {
+    id: 6,
+    left: "63%",
+    size: "20px",
+    duration: "24s",
+    delay: "14s",
+    color: COLORS[1],
+    alt: true,
+  },
+  {
+    id: 7,
+    left: "72%",
+    size: "12px",
+    duration: "26s",
+    delay: "3s",
+    color: COLORS[2],
+    alt: false,
+  },
+  {
+    id: 8,
+    left: "81%",
+    size: "18px",
+    duration: "30s",
+    delay: "9s",
+    color: COLORS[3],
+    alt: true,
+  },
+  {
+    id: 9,
+    left: "90%",
+    size: "15px",
+    duration: "23s",
+    delay: "7s",
+    color: COLORS[4],
+    alt: false,
+  },
+  {
+    id: 10,
+    left: "7%",
+    size: "13px",
+    duration: "27s",
+    delay: "15s",
+    color: COLORS[1],
+    alt: false,
+  },
+  {
+    id: 11,
+    left: "47%",
+    size: "19px",
+    duration: "31s",
+    delay: "12s",
+    color: COLORS[0],
+    alt: true,
+  },
+];
 
 export function FloatingMath() {
-  const symbols = useMemo<SymbolItem[]>(() => {
-    return Array.from({ length: 28 }, (_, i) => ({
-      id: i,
-      symbol: SYMBOLS[i % SYMBOLS.length],
-      left: `${(i * 3.6 + Math.sin(i * 1.3) * 4) % 97}%`,
-      size: `${12 + (i % 6) * 7}px`,
-      duration: i % 3 === 2 ? `${8 + (i % 5) * 2}s` : `${14 + (i % 7) * 3}s`,
-      delay: `${(i * 1.1) % 12}s`,
-      color: COLORS[i % COLORS.length],
-      layer: i % 3 === 0 ? "fast" : i % 3 === 1 ? "alt" : "slow",
-    }));
-  }, []);
+  // useMemo not needed since array is static -- just reference it
+  const symbols = useMemo(() => STATIC_SYMBOLS, []);
 
   return (
     <div
@@ -69,13 +135,7 @@ export function FloatingMath() {
       {symbols.map((item) => (
         <span
           key={item.id}
-          className={
-            item.layer === "fast"
-              ? "animate-float-up"
-              : item.layer === "alt"
-                ? "animate-float-up-alt"
-                : "animate-float-up"
-          }
+          className={item.alt ? "animate-float-up-alt" : "animate-float-up"}
           style={{
             position: "absolute",
             bottom: "-5vh",
@@ -87,10 +147,10 @@ export function FloatingMath() {
             fontFamily: '"Geist Mono", monospace',
             fontWeight: 700,
             userSelect: "none",
-            opacity: item.layer === "slow" ? 0.6 : 1,
+            willChange: "transform",
           }}
         >
-          {item.symbol}
+          {SYMBOLS[item.id % SYMBOLS.length]}
         </span>
       ))}
     </div>

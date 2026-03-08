@@ -252,18 +252,14 @@ function SlideShinchen() {
               "0 0 30px oklch(0.7 0.22 280 / 0.4), 0 0 60px oklch(0.7 0.22 280 / 0.15)",
           }}
         >
-          ⭐{/* Orbit ring */}
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{
-              duration: 4,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
-            }}
-            className="absolute inset-0 rounded-full pointer-events-none"
+          ⭐ {/* Orbit ring */}
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none animate-spin"
             style={{
               border: "1px dashed oklch(0.78 0.2 195 / 0.4)",
               transform: "scale(1.2)",
+              animationDuration: "4s",
+              animationTimingFunction: "linear",
             }}
           />
         </div>
