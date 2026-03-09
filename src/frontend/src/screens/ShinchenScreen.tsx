@@ -20,6 +20,7 @@ import {
   shinchanStop,
   toggleShinchanVoice,
 } from "../utils/shinchanVoice";
+import { searchWikipediaMath } from "../utils/wikipediaMath";
 
 interface ShinchenScreenProps {
   profile: PlayerProfile;
@@ -31,6 +32,9 @@ interface ChatMessage {
   role: "user" | "shinchen";
   text: string;
   timestamp: Date;
+  isWiki?: boolean;
+  wikiUrl?: string;
+  wikiTitle?: string;
 }
 
 type AvatarState = "thinking" | "happy" | "celebrating";
@@ -96,6 +100,8 @@ const QUICK_PROMPTS = [
   { label: "📚 Study tip", message: "Give me a study tip" },
   { label: "🏆 Daily challenge", message: "What's today's challenge?" },
   { label: "📊 My weak topics", message: "What are my weak topics?" },
+  { label: "📖 What is Pi?", message: "What is Pi?" },
+  { label: "🔍 Pythagorean theorem", message: "Pythagorean theorem" },
 ];
 
 let msgId = 0;
@@ -609,6 +615,7 @@ function TypedChatMessage({
   useTyping,
 }: { msg: ChatMessage; useTyping: boolean }) {
   const displayedText = useTypedText(msg.text, useTyping, 15);
+  const isTypingComplete = displayedText === msg.text;
 
   return (
     <motion.div
@@ -626,11 +633,11 @@ function TypedChatMessage({
             border: "1px solid oklch(0.7 0.22 280 / 0.4)",
           }}
         >
-          🌟
+          {msg.isWiki ? "📖" : "🌟"}
         </div>
       )}
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "shinchen" ? "rounded-tl-sm bg-secondary border border-border/50 text-foreground" : "rounded-tr-sm text-foreground"}`}
+        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "shinchen" ? "rounded-tl-sm text-foreground" : "rounded-tr-sm text-foreground"}`}
         style={
           msg.role === "user"
             ? {
@@ -638,12 +645,62 @@ function TypedChatMessage({
                   "linear-gradient(135deg, oklch(0.2 0.06 195), oklch(0.15 0.04 265))",
                 border: "1px solid oklch(0.78 0.2 195 / 0.4)",
               }
-            : {}
+            : msg.isWiki
+              ? {
+                  background:
+                    "linear-gradient(135deg, oklch(0.12 0.04 60 / 0.5), oklch(0.08 0.02 55 / 0.8))",
+                  border: "1px solid oklch(0.7 0.15 60 / 0.45)",
+                  boxShadow: "0 0 12px oklch(0.7 0.15 60 / 0.12)",
+                }
+              : {
+                  background: "oklch(0.12 0.02 265 / 0.6)",
+                  border: "1px solid oklch(0.2 0.03 270 / 0.5)",
+                }
         }
       >
-        {displayedText}
-        {useTyping && displayedText.length < msg.text.length && (
+        <span style={{ whiteSpace: "pre-wrap" }}>{displayedText}</span>
+        {useTyping && !isTypingComplete && (
           <span className="inline-block w-1 h-3 bg-neon-purple ml-0.5 animate-pulse" />
+        )}
+        {/* Wikipedia source badge — shown only after typing completes */}
+        {msg.isWiki && msg.wikiUrl && isTypingComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
+            className="mt-3 pt-2.5 flex items-center gap-2"
+            style={{
+              borderTop: "1px solid oklch(0.7 0.15 60 / 0.25)",
+            }}
+          >
+            <span
+              className="text-xs font-bold tracking-wide px-2 py-0.5 rounded-full"
+              style={{
+                background: "oklch(0.7 0.15 60 / 0.2)",
+                color: "oklch(0.82 0.18 60)",
+                border: "1px solid oklch(0.7 0.15 60 / 0.35)",
+              }}
+            >
+              📖 Wikipedia
+            </span>
+            <a
+              href={msg.wikiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-xs font-semibold transition-colors"
+              style={{ color: "oklch(0.78 0.16 60)" }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLAnchorElement).style.color =
+                  "oklch(0.9 0.2 60)";
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLAnchorElement).style.color =
+                  "oklch(0.78 0.16 60)";
+              }}
+            >
+              Read more →
+            </a>
+          </motion.div>
         )}
       </div>
     </motion.div>
@@ -807,16 +864,23 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
     setIsTyping(true);
     setAvatarState("thinking");
 
-    const delay = 600 + Math.random() * 600;
-    setTimeout(() => {
+    const lower = text.toLowerCase();
+
+    (async () => {
+      const delay = 600 + Math.random() * 400;
+      await new Promise<void>((r) => setTimeout(r, delay));
+
       let response: string;
-      const lower = text.toLowerCase();
+      let wikiUrl: string | undefined;
+      let wikiTitle: string | undefined;
+      let isWiki = false;
 
       if (lower.includes("daily challenge") || lower.includes("challenge")) {
         response =
           SHINCHEN_DAILY_CHALLENGES[
             new Date().getDate() % SHINCHEN_DAILY_CHALLENGES.length
           ];
+        if (voiceEnabledRef.current) shinchanSpeak(response);
       } else if (lower.includes("weak topic")) {
         if (profile.weakTopics.length > 0) {
           response = `I've noticed you might want to practice: ${profile.weakTopics.join(", ")}. Try the Drill Mode tab! ${SHINCHEN_HINTS[profile.weakTopics[0]]?.[0] ?? "Keep practicing!"}`;
@@ -824,6 +888,7 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
           response =
             "You're doing great across all topics! No weak spots detected yet. Keep playing! 🌟";
         }
+        if (voiceEnabledRef.current) shinchanSpeak(response);
       } else if (lower.includes("hint") || lower.includes("study tip")) {
         const gradeToTopic: Record<number, string> = {
           1: "addition",
@@ -844,22 +909,35 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
         response =
           hints?.[Math.floor(Math.random() * hints.length)] ??
           getShinchenResponse(text, profile.weakTopics);
+        if (voiceEnabledRef.current) shinchanSpeak(response);
       } else {
-        response = getShinchenResponse(text, profile.weakTopics);
+        // Try Wikipedia for custom questions
+        const wikiResult = await searchWikipediaMath(text);
+        if (wikiResult) {
+          response = `📖 Here's what I found!\n\n${wikiResult.summary}`;
+          wikiUrl = wikiResult.url;
+          wikiTitle = wikiResult.title;
+          isWiki = true;
+          // Speak just the summary (skip emoji prefix)
+          if (voiceEnabledRef.current) shinchanSpeak(wikiResult.summary);
+        } else {
+          response = getShinchenResponse(text, profile.weakTopics);
+          if (voiceEnabledRef.current) shinchanSpeak(response);
+        }
       }
 
-      const newMsg = makeMsg("shinchen", response);
+      const newMsg: ChatMessage = {
+        ...makeMsg("shinchen", response),
+        isWiki,
+        wikiUrl,
+        wikiTitle,
+      };
       setMessages((prev) => [...prev, newMsg]);
       setLastMsgId(newMsg.id);
       setIsTyping(false);
       setAvatarState(getAvatarState(response));
       setTimeout(() => setAvatarState("thinking"), 3000);
-
-      // Speak the response if voice is enabled (shinchanSpeak checks internally)
-      if (voiceEnabledRef.current) {
-        shinchanSpeak(response);
-      }
-    }, delay);
+    })();
   };
 
   return (

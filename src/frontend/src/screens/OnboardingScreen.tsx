@@ -1,12 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { NeonButton } from "../components/NeonButton";
@@ -419,25 +412,73 @@ export function OnboardingScreen({
                 <Label className="text-foreground/80 mb-2 block font-semibold">
                   Your Grade
                 </Label>
-                <Select value={grade} onValueChange={setGrade}>
-                  <SelectTrigger
-                    className="bg-secondary border-border focus:border-neon-cyan h-12 rounded-xl text-base"
-                    data-ocid="onboarding.grade.select"
-                  >
-                    <SelectValue placeholder="Select your grade..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
-                      <SelectItem
+                <div className="flex flex-col gap-2">
+                  {/* Row 1: Grades 1–6 */}
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {[1, 2, 3, 4, 5, 6].map((g) => (
+                      <button
                         key={g}
-                        value={String(g)}
-                        className="focus:bg-secondary"
+                        type="button"
+                        onClick={() => setGrade(String(g))}
+                        data-ocid={`onboarding.grade.select.${g}`}
+                        className="h-11 rounded-xl text-sm font-bold transition-all duration-150 border"
+                        style={
+                          grade === String(g)
+                            ? {
+                                background:
+                                  "linear-gradient(135deg, oklch(0.78 0.2 195 / 0.9), oklch(0.7 0.22 280 / 0.9))",
+                                border: "1.5px solid oklch(0.78 0.2 195)",
+                                color: "oklch(0.98 0.02 195)",
+                                boxShadow:
+                                  "0 0 14px oklch(0.78 0.2 195 / 0.45)",
+                              }
+                            : {
+                                background: "oklch(0.13 0.03 265 / 0.8)",
+                                border: "1px solid oklch(0.4 0.08 265 / 0.5)",
+                                color: "oklch(0.75 0.06 265)",
+                              }
+                        }
                       >
-                        Grade {g}
-                      </SelectItem>
+                        {g}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                  {/* Row 2: Grades 7–12 */}
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {[7, 8, 9, 10, 11, 12].map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setGrade(String(g))}
+                        data-ocid={`onboarding.grade.select.${g}`}
+                        className="h-11 rounded-xl text-sm font-bold transition-all duration-150 border"
+                        style={
+                          grade === String(g)
+                            ? {
+                                background:
+                                  "linear-gradient(135deg, oklch(0.78 0.2 195 / 0.9), oklch(0.7 0.22 280 / 0.9))",
+                                border: "1.5px solid oklch(0.78 0.2 195)",
+                                color: "oklch(0.98 0.02 195)",
+                                boxShadow:
+                                  "0 0 14px oklch(0.78 0.2 195 / 0.45)",
+                              }
+                            : {
+                                background: "oklch(0.13 0.03 265 / 0.8)",
+                                border: "1px solid oklch(0.4 0.08 265 / 0.5)",
+                                color: "oklch(0.75 0.06 265)",
+                              }
+                        }
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                  {grade && (
+                    <p className="text-xs text-neon-cyan text-center font-semibold mt-0.5">
+                      Grade {grade} selected ✓
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Optional class code */}
