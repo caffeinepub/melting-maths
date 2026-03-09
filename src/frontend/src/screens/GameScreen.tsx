@@ -56,6 +56,7 @@ import { checkAndCompleteChallenge } from "../data/weeklyChallenge";
 import { useRecordGameSession, useUnlockedLevels } from "../hooks/useQueries";
 import { useSoundEffects } from "../hooks/useSoundEffects";
 import { recordSession as recordAnalyticsSession } from "../utils/analyticsUtils";
+import { shinchanSpeak } from "../utils/shinchanVoice";
 
 interface GameScreenProps {
   gameId: string;
@@ -1091,8 +1092,17 @@ function StoryIntro({
   onStart: () => void;
 }) {
   const story = SHINCHEN_STORIES[gameId];
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run only on mount
+  useEffect(() => {
+    if (story) {
+      shinchanSpeak(story);
+    } else {
+      onStart();
+    }
+  }, []);
+
   if (!story) {
-    onStart();
     return null;
   }
 
@@ -1278,6 +1288,9 @@ export function GameScreen({
   const handleHintPress = useCallback(() => {
     setHintActive(true);
     setTimeout(() => setHintActive(false), 3000);
+    shinchanSpeak(
+      "Okay okay! Here is your hint! Look carefully at the question. Take your time and think step by step!",
+    );
   }, []);
 
   if (!meta) {
@@ -1336,6 +1349,19 @@ export function GameScreen({
     if (res.score >= 70) {
       sounds.playLevelComplete();
       setWinParticle(true);
+      if (res.score >= 90) {
+        shinchanSpeak(
+          `Woohoo! ${res.score} percent! You are a math genius! Amazing!`,
+        );
+      } else {
+        shinchanSpeak(
+          `Yeah! Great job! You scored ${res.score} percent! Keep it up!`,
+        );
+      }
+    } else {
+      shinchanSpeak(
+        `Don't give up! You scored ${res.score} percent. Practice makes perfect! Let's try again!`,
+      );
     }
     sounds.playXpEarned();
 

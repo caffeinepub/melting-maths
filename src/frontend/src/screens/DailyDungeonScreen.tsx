@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { PlayerProfile } from "../backend.d";
+import { shinchanSpeak } from "../utils/shinchanVoice";
 
 interface DailyDungeonScreenProps {
   profile: PlayerProfile;
@@ -199,7 +200,15 @@ export function DailyDungeonScreen({
   const [completedToday] = useState(hasCompletedToday);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: clearTimer is a stable ref-based helper
+  // Speak each question when it changes
+  useEffect(() => {
+    if (phase === "playing" && !feedback && questions[questionIdx]) {
+      shinchanSpeak(
+        `Question ${questionIdx + 1}: ${questions[questionIdx].question}`,
+      );
+    }
+  }, [questionIdx, phase, feedback, questions]);
+
   useEffect(() => {
     if (phase !== "playing" || feedback) return;
 
@@ -260,7 +269,14 @@ export function DailyDungeonScreen({
     const q = questions[questionIdx];
     const isCorrect = opt === q.answer;
     setFeedback(isCorrect ? "correct" : "wrong");
-    if (isCorrect) setCorrectCount((c) => c + 1);
+    if (isCorrect) {
+      setCorrectCount((c) => c + 1);
+      shinchanSpeak("Correct! You're on fire!");
+    } else {
+      shinchanSpeak(
+        `Wrong! The answer was ${q.answer}. Keep going, you can do it!`,
+      );
+    }
   };
 
   const timerPct = (timeLeft / DUNGEON_TIME) * 100;
@@ -352,7 +368,12 @@ export function DailyDungeonScreen({
 
                 <motion.button
                   type="button"
-                  onClick={() => setPhase("playing")}
+                  onClick={() => {
+                    setPhase("playing");
+                    shinchanSpeak(
+                      "Okay! Let's enter the dungeon! Get ready for 10 questions! You can do it!",
+                    );
+                  }}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.96 }}
                   className="w-full py-4 rounded-xl font-display font-black text-base"

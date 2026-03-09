@@ -13,6 +13,13 @@ import {
   getShinchenResponse,
 } from "../data/shinchen";
 import { SHINCHEN_QUIZ_QUESTIONS } from "../data/shinchenQuiz";
+import {
+  isSpeechSynthesisAvailable,
+  isVoiceEnabled,
+  shinchanSpeak,
+  shinchanStop,
+  toggleShinchanVoice,
+} from "../utils/shinchanVoice";
 
 interface ShinchenScreenProps {
   profile: PlayerProfile;
@@ -211,6 +218,13 @@ function DrillModes({ profile }: { profile: PlayerProfile }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
 
+  // Speak drill question when it changes
+  useEffect(() => {
+    if (activeTopic && !drillDone && drillQ[drillIdx]) {
+      shinchanSpeak(drillQ[drillIdx].question);
+    }
+  }, [drillIdx, activeTopic, drillDone, drillQ]);
+
   const startDrill = (topic: string) => {
     const questions = SHINCHEN_QUIZ_QUESTIONS.filter(
       (q) => q.topic === topic || topic === "all",
@@ -223,6 +237,7 @@ function DrillModes({ profile }: { profile: PlayerProfile }) {
     setDrillDone(false);
     setSelected(null);
     setFeedback(null);
+    shinchanSpeak(`Okay! Let's drill ${topic} together! Here we go!`);
   };
 
   const handleDrillAnswer = (opt: string) => {
@@ -231,7 +246,12 @@ function DrillModes({ profile }: { profile: PlayerProfile }) {
     const q = drillQ[drillIdx];
     const isCorrect = opt === q.answer;
     setFeedback(isCorrect ? "correct" : "wrong");
-    if (isCorrect) setDrillCorrect((c) => c + 1);
+    if (isCorrect) {
+      setDrillCorrect((c) => c + 1);
+      shinchanSpeak("Yes yes yes! You got it!");
+    } else {
+      shinchanSpeak(`Hmm, the answer is ${q.answer}. Let's keep going!`);
+    }
 
     setTimeout(() => {
       if (drillIdx + 1 >= drillQ.length) {
@@ -414,13 +434,27 @@ function DailyQuiz({ profile: _profile }: { profile: PlayerProfile }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
 
+  // Speak the current question when it changes
+  useEffect(() => {
+    if (quizStarted && !done && questions[idx]) {
+      shinchanSpeak(`Question ${idx + 1}: ${questions[idx].question}`);
+    }
+  }, [idx, quizStarted, done, questions]);
+
   const handleAnswer = (opt: string) => {
     if (feedback) return;
     setSelected(opt);
     const q = questions[idx];
     const isCorrect = opt === q.answer;
     setFeedback(isCorrect ? "correct" : "wrong");
-    if (isCorrect) setCorrect((c) => c + 1);
+    if (isCorrect) {
+      setCorrect((c) => c + 1);
+      shinchanSpeak("Yeah! That's correct! Awesome!");
+    } else {
+      shinchanSpeak(
+        `Oops! The correct answer was ${q.answer}. Don't worry, try the next one!`,
+      );
+    }
 
     setTimeout(() => {
       if (idx + 1 >= questions.length) {
@@ -617,61 +651,7 @@ function TypedChatMessage({
 }
 
 // ─── Voice Narration ──────────────────────────────────────────────
-const VOICE_STORAGE_KEY = "mm_shinchen_voice";
-
-function getVoiceEnabled(): boolean {
-  try {
-    return localStorage.getItem(VOICE_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function setVoiceStorage(v: boolean) {
-  try {
-    localStorage.setItem(VOICE_STORAGE_KEY, v ? "true" : "false");
-  } catch {
-    /* noop */
-  }
-}
-
-function isSpeechSynthesisAvailable(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
-
-function getPreferredVoice(): SpeechSynthesisVoice | null {
-  if (!isSpeechSynthesisAvailable()) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
-
-  // Prefer en-US female-leaning voices
-  const enUs = voices.filter((v) => v.lang === "en-US");
-  if (enUs.length === 0) return voices[0];
-
-  const femaleNames = ["samantha", "karen", "victoria", "female", "zira"];
-  for (const name of femaleNames) {
-    const found = enUs.find((v) => v.name.toLowerCase().includes(name));
-    if (found) return found;
-  }
-  // Fall back to index 1 if available (often female on most platforms)
-  return enUs[1] ?? enUs[0];
-}
-
-function speak(text: string) {
-  if (!isSpeechSynthesisAvailable()) return;
-  // Cancel any ongoing speech
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.95;
-  utterance.pitch = 1.1;
-  utterance.volume = 0.85;
-
-  const voice = getPreferredVoice();
-  if (voice) utterance.voice = voice;
-
-  window.speechSynthesis.speak(utterance);
-}
+// All voice logic is handled by ../utils/shinchanVoice
 
 function WeeklyTipTab() {
   const tip = getWeeklyTip();
@@ -791,39 +771,26 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Voice narration state (persisted in localStorage, no re-render on speech events)
-  const [voiceEnabled, setVoiceEnabledState] = useState(getVoiceEnabled);
+  // Voice narration state (persisted in localStorage via shinchanVoice util)
+  const [voiceEnabled, setVoiceEnabledState] = useState(isVoiceEnabled);
   const speechAvailable = isSpeechSynthesisAvailable();
   const voiceEnabledRef = useRef(voiceEnabled);
 
   const toggleVoice = useCallback(() => {
-    const next = !voiceEnabledRef.current;
+    const next = toggleShinchanVoice();
     voiceEnabledRef.current = next;
     setVoiceEnabledState(next);
-    setVoiceStorage(next);
-    if (!next) {
-      // Stop any ongoing speech when toggled off
-      if (isSpeechSynthesisAvailable()) window.speechSynthesis.cancel();
-    }
     toast.success(next ? "🔊 Shinchen voice ON" : "🔇 Shinchen voice OFF");
   }, []);
 
-  // Load voices when available (needed for some browsers that lazy-load)
+  // Speak greeting on mount if voice is enabled (profile.name is stable at mount)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only effect
   useEffect(() => {
-    if (!isSpeechSynthesisAvailable()) return;
-    const handleVoicesChanged = () => {
-      // Forces a voice list refresh - no state update needed
-    };
-    window.speechSynthesis.addEventListener(
-      "voiceschanged",
-      handleVoicesChanged,
-    );
-    return () => {
-      window.speechSynthesis.removeEventListener(
-        "voiceschanged",
-        handleVoicesChanged,
-      );
-    };
+    if (voiceEnabledRef.current) {
+      const greetText = `Hey ${profile.name}! I'm Shinchen! Let's melt some maths together!`;
+      shinchanSpeak(greetText);
+    }
+    return () => shinchanStop();
   }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollRef is stable
@@ -888,13 +855,9 @@ export function ShinchenScreen({ profile, onBack }: ShinchenScreenProps) {
       setAvatarState(getAvatarState(response));
       setTimeout(() => setAvatarState("thinking"), 3000);
 
-      // Speak the response if voice is enabled
+      // Speak the response if voice is enabled (shinchanSpeak checks internally)
       if (voiceEnabledRef.current) {
-        // Strip emojis for cleaner TTS
-        const cleanText = response
-          .replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]/gu, "")
-          .trim();
-        speak(cleanText);
+        shinchanSpeak(response);
       }
     }, delay);
   };
