@@ -57,5 +57,4 @@ export default defineConfig({
     ],
     dedupe: ["@dfinity/agent"],
   },
-  publicDir: "public",
 });

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Home / Sign-in -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Games Hub -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/games</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Tournament Mode -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/games/tournament</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Daily Dungeon -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/games/daily-dungeon</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Boss Rush -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/games/boss-rush</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Challenge a Friend -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/games/challenge</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Leaderboard -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/leaderboard</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Live Stats / Public Analytics -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/analytics</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- AI Tutor (Shinchen) -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/tutor</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Player Profile -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/profile</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Grade Certificate -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/profile/certificate</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Teacher Dashboard -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/teacher</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Admin Registry -->
+  <url>
+    <loc>https://melting-maths-hs1.caffeine.xyz/admin-registry</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+</urlset>
