@@ -19,6 +19,7 @@ interface GradeGames {
     icon: string;
     topic: string;
     color: "cyan" | "purple" | "blue";
+    description: string;
   }>;
 }
 
@@ -34,6 +35,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🎯",
         topic: "Addition",
         color: "cyan",
+        description:
+          "Catch falling numbers to practice counting and addition. Sharpens number recognition and quick mental maths skills.",
       },
       {
         id: "addition-rocket",
@@ -41,6 +44,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🚀",
         topic: "Addition",
         color: "purple",
+        description:
+          "Launch rockets by solving addition problems. Builds fast addition skills with increasing difficulty levels.",
       },
       {
         id: "subtraction-blocks",
@@ -48,6 +53,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🧊",
         topic: "Subtraction",
         color: "blue",
+        description:
+          "Break blocks by solving subtraction challenges. Strengthens subtraction fluency through visual gameplay.",
       },
       {
         id: "number-race",
@@ -55,6 +62,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⭐",
         topic: "Counting",
         color: "cyan",
+        description:
+          "Race against the clock to order and count numbers. Improves number sense and counting speed.",
       },
       {
         id: "shape-sorter",
@@ -62,6 +71,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🔺",
         topic: "Shapes",
         color: "purple",
+        description:
+          "Sort shapes into the right categories. Teaches geometry basics, shape recognition, and spatial thinking.",
       },
       {
         id: "skip-counter",
@@ -69,6 +80,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🔢",
         topic: "Skip Counting",
         color: "blue",
+        description:
+          "Count in multiples of 2s, 5s, and 10s. Lays the foundation for multiplication understanding.",
       },
     ],
   },
@@ -83,6 +96,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⚔️",
         topic: "Fractions",
         color: "purple",
+        description:
+          "Battle enemies using fraction knowledge. Master comparing, simplifying, and operating with fractions.",
       },
       {
         id: "decimal-dash",
@@ -90,6 +105,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "💨",
         topic: "Decimals",
         color: "cyan",
+        description:
+          "Dash through levels by solving decimal problems. Builds understanding of tenths, hundredths, and decimal operations.",
       },
       {
         id: "time-master",
@@ -97,6 +114,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⏰",
         topic: "Time",
         color: "blue",
+        description:
+          "Read clocks and solve time problems to advance. Develops real-life time-telling and elapsed time skills.",
       },
       {
         id: "multiplication-madness",
@@ -104,6 +123,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⚡",
         topic: "Multiplication",
         color: "cyan",
+        description:
+          "Race through multiplication challenges at speed. Strengthens times tables and builds multiplication fluency.",
       },
       {
         id: "division-dungeon",
@@ -111,6 +132,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🏰",
         topic: "Division",
         color: "purple",
+        description:
+          "Escape the dungeon by solving division puzzles. Practices short and long division in an exciting setting.",
       },
       {
         id: "word-problem-wizard",
@@ -118,6 +141,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🧙",
         topic: "Word Problems",
         color: "blue",
+        description:
+          "Solve real-world word problems using maths. Develops problem-solving, reading comprehension, and applied maths.",
       },
     ],
   },
@@ -132,6 +157,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🔐",
         topic: "Algebra",
         color: "blue",
+        description:
+          "Escape the room by solving algebraic equations. Introduces variables, expressions, and equation-solving skills.",
       },
       {
         id: "geometry-builder",
@@ -139,6 +166,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "📐",
         topic: "Geometry",
         color: "cyan",
+        description:
+          "Build shapes and solve geometry challenges. Covers area, perimeter, angles, and spatial reasoning.",
       },
       {
         id: "integer-war",
@@ -146,6 +175,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⚡",
         topic: "Integers",
         color: "purple",
+        description:
+          "Battle with positive and negative integers. Builds fluency with integer addition, subtraction, and comparison.",
       },
       {
         id: "ratio-rumble",
@@ -153,6 +184,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⚖️",
         topic: "Ratios",
         color: "cyan",
+        description:
+          "Settle ratio battles with your maths knowledge. Teaches ratio, proportion, and rate concepts through gameplay.",
       },
       {
         id: "percentage-power",
@@ -160,6 +193,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "💯",
         topic: "Percentages",
         color: "blue",
+        description:
+          "Power up by calculating percentages accurately. Covers percentage of a number, increase, decrease, and discounts.",
       },
       {
         id: "pattern-detective",
@@ -167,6 +202,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🔍",
         topic: "Patterns",
         color: "purple",
+        description:
+          "Detect and continue number and shape patterns. Strengthens algebraic thinking and pattern recognition.",
       },
     ],
   },
@@ -181,6 +218,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "👾",
         topic: "Quadratics",
         color: "purple",
+        description:
+          "Defeat the boss by solving quadratic equations. Covers factoring, completing the square, and the quadratic formula.",
       },
       {
         id: "graph-builder",
@@ -188,6 +227,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "📈",
         topic: "Graphs",
         color: "cyan",
+        description:
+          "Build graphs by plotting equations correctly. Teaches linear, quadratic, and function graphing skills.",
       },
       {
         id: "trig-sniper",
@@ -195,6 +236,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🎯",
         topic: "Trigonometry",
         color: "blue",
+        description:
+          "Snipe targets using trigonometry calculations. Practices sin, cos, tan, and right-angle triangle problems.",
       },
       {
         id: "statistics-showdown",
@@ -202,6 +245,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "📊",
         topic: "Statistics",
         color: "cyan",
+        description:
+          "Win showdowns with your statistics knowledge. Covers mean, median, mode, range, and data interpretation.",
       },
       {
         id: "sequence-solver",
@@ -209,6 +254,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🧮",
         topic: "Sequences",
         color: "purple",
+        description:
+          "Solve arithmetic and geometric sequences to advance. Builds skills in pattern recognition and nth-term formulas.",
       },
       {
         id: "coordinate-quest",
@@ -216,6 +263,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🗺️",
         topic: "Coordinates",
         color: "blue",
+        description:
+          "Quest through a coordinate plane adventure. Teaches plotting points, distance, and midpoint in 2D space.",
       },
     ],
   },
@@ -230,6 +279,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🏃",
         topic: "Calculus",
         color: "cyan",
+        description:
+          "Run through calculus obstacles at full speed. Covers differentiation, integration, and limits in an action format.",
       },
       {
         id: "matrix-code",
@@ -237,6 +288,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "💻",
         topic: "Matrices",
         color: "blue",
+        description:
+          "Crack the code using matrix operations. Practices matrix addition, multiplication, determinants, and inverses.",
       },
       {
         id: "probability-strategy",
@@ -244,6 +297,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🎲",
         topic: "Probability",
         color: "purple",
+        description:
+          "Apply probability strategy to win the game. Covers sample spaces, events, permutations, and combinations.",
       },
       {
         id: "complex-clash",
@@ -251,6 +306,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "⚡",
         topic: "Complex Numbers",
         color: "cyan",
+        description:
+          "Clash using complex number operations. Teaches addition, multiplication, modulus, and argument of complex numbers.",
       },
       {
         id: "logarithm-lab",
@@ -258,6 +315,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🧪",
         topic: "Logarithms",
         color: "purple",
+        description:
+          "Experiment in the lab with logarithm challenges. Covers log rules, natural log, change of base, and log equations.",
       },
       {
         id: "vectors-voyage",
@@ -265,6 +324,8 @@ const GRADE_GAMES: GradeGames[] = [
         icon: "🧭",
         topic: "Vectors",
         color: "blue",
+        description:
+          "Voyage across dimensions using vector maths. Practices vector addition, dot product, cross product, and magnitude.",
       },
     ],
   },
@@ -302,7 +363,7 @@ export function GameSelectScreen({
   onBack,
 }: GameSelectScreenProps) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pb-20">
       <header className="px-6 pt-10 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <button
@@ -368,6 +429,9 @@ export function GameSelectScreen({
                       </div>
                       <div className="text-muted-foreground text-xs">
                         {game.topic}
+                      </div>
+                      <div className="text-muted-foreground/70 text-xs mt-0.5 leading-tight line-clamp-2">
+                        {game.description}
                       </div>
                       <LevelDots gameId={game.id} color={game.color} />
                     </div>

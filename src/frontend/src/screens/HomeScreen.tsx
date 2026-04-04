@@ -200,6 +200,24 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
 
   const VISITS_OFFSET = 230;
 
+  // Track light/dark mode for inline-style sections
+  const [isLight, setIsLight] = useState(
+    () => document.documentElement.getAttribute("data-color-mode") === "light",
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsLight(
+        document.documentElement.getAttribute("data-color-mode") === "light",
+      );
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-color-mode"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (totalVisitsData !== undefined && totalVisitsData > BigInt(0)) {
       animate(visitsCount, Number(totalVisitsData) + VISITS_OFFSET, {
@@ -231,7 +249,7 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pb-20">
       {/* Header */}
       <header className="px-6 pt-10 pb-4">
         <motion.div
@@ -381,6 +399,70 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
               Use Freeze
             </button>
           )}
+        </div>
+      </motion.div>
+
+      {/* ── WELCOME INTRO ─────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.16 }}
+        className="mx-6 mb-4 rounded-2xl p-5"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.1 0.04 195 / 0.7), oklch(0.09 0.03 265 / 0.8))",
+          border: "1px solid oklch(0.78 0.2 195 / 0.25)",
+          boxShadow: "0 0 30px oklch(0.78 0.2 195 / 0.08)",
+        }}
+        data-ocid="home.intro.card"
+      >
+        <div
+          className="font-display text-base font-black mb-3"
+          style={{
+            background:
+              "linear-gradient(90deg, oklch(0.92 0.15 195) 0%, oklch(0.85 0.18 280) 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          Welcome to Melting Maths 🧮
+        </div>
+        <div className="space-y-2 text-foreground/80 text-sm leading-relaxed">
+          <p>
+            Melting Maths is a{" "}
+            <strong className="text-neon-cyan">
+              free, interactive maths learning platform
+            </strong>{" "}
+            designed for students from Grade 1 to Grade 12. Whether you're just
+            starting with basic addition or tackling advanced calculus, we've
+            got the perfect game for you.
+          </p>
+          <p>
+            With{" "}
+            <strong className="text-neon-purple">
+              40+ exciting maths games
+            </strong>
+            , every topic comes alive through challenges, boss battles, and
+            brain-teasing puzzles. Our games are grouped by grade level, so you
+            always play at the right difficulty — and level up as you improve.
+          </p>
+          <p>
+            At the heart of Melting Maths is{" "}
+            <strong className="text-neon-cyan">Shinchen</strong>, our AI maths
+            tutor. Shinchen guides you through tough topics, answers your maths
+            questions, and gives you daily challenges to keep your skills sharp.
+          </p>
+          <p>
+            Compete on our{" "}
+            <strong className="text-amber-400">Global Leaderboard</strong>, earn
+            XP, unlock badges and titles, and track your progress. Special modes
+            like <strong className="text-neon-purple">Tournament</strong>,{" "}
+            <strong className="text-neon-cyan">Daily Dungeon</strong>, and{" "}
+            <strong className="text-amber-400">Boss Rush</strong> make every
+            session an adventure. Melting Maths is completely free — no
+            sign-ups, no passwords, just maths!
+          </p>
         </div>
       </motion.div>
 
@@ -850,6 +932,184 @@ export function HomeScreen({ profile, onNavigate }: HomeScreenProps) {
           ))}
         </div>
       </div>
+
+      {/* ── ABOUT US ──────────────────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.5 }}
+        className="mx-6 mb-4 rounded-2xl p-6"
+        style={{
+          background: isLight
+            ? "linear-gradient(135deg, oklch(0.95 0.02 280 / 0.9), oklch(0.93 0.02 195 / 0.9))"
+            : "linear-gradient(135deg, oklch(0.1 0.04 280 / 0.7), oklch(0.08 0.03 195 / 0.8))",
+          border: isLight
+            ? "1px solid oklch(0.7 0.22 280 / 0.2)"
+            : "1px solid oklch(0.7 0.22 280 / 0.3)",
+          boxShadow: "0 0 24px oklch(0.7 0.22 280 / 0.1)",
+        }}
+        data-ocid="about.section"
+      >
+        {/* Section heading */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xl">👨‍💻</span>
+          <h2 className="font-display text-sm font-black tracking-widest uppercase text-black dark:text-orange-600">
+            About Us
+          </h2>
+        </div>
+
+        {/* Founder card */}
+        <div
+          className="rounded-xl p-4 mb-4"
+          style={{
+            background: isLight
+              ? "oklch(0.88 0.01 265 / 0.8)"
+              : "oklch(0.08 0.02 265 / 0.6)",
+            border: "1px solid oklch(0.78 0.2 195 / 0.15)",
+          }}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.78 0.2 195 / 0.2), oklch(0.7 0.22 280 / 0.2))",
+                border: "1px solid oklch(0.78 0.2 195 / 0.3)",
+              }}
+            >
+              🧑‍🎓
+            </div>
+            <div>
+              <div className="font-display font-black text-sm text-neon-cyan">
+                Laksh Agarwal
+              </div>
+              <div className="text-muted-foreground text-xs">
+                Grade 7 · Founder · India
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-foreground/85 text-sm leading-relaxed">
+              Hi! I'm Laksh Agarwal, a Grade 7 student from India. I'm the
+              founder of Melting Maths — a free educational website built
+              especially for students from Grade 1 to 10.
+            </p>
+            <p className="text-foreground/85 text-sm leading-relaxed">
+              I created this platform because I truly believe that maths doesn't
+              have to be scary or boring. With colorful quizzes and simple
+              design, learning numbers can actually be fun!
+            </p>
+            <p className="text-foreground/85 text-sm leading-relaxed">
+              My dream is to become a successful entrepreneur one day — someone
+              who builds things that make learning and life easier for everyone.
+              Melting Maths is my first step toward that dream.
+            </p>
+          </div>
+        </div>
+
+        {/* Tagline */}
+        <div
+          className="rounded-xl px-4 py-3 text-center"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.78 0.2 195 / 0.08), oklch(0.7 0.22 280 / 0.08))",
+            border: "1px solid oklch(0.78 0.2 195 / 0.2)",
+          }}
+        >
+          <p className="font-display font-black text-sm text-orange-600">
+            Let's melt the fear of maths — together!
+          </p>
+          <p className="text-xs mt-1 text-orange-600">
+            #CreatedByAStudentForAStudent
+          </p>
+        </div>
+      </motion.section>
+
+      {/* ── CONTACT US ────────────────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.5, delay: 0.08 }}
+        className="mx-6 mb-6 rounded-2xl p-6"
+        style={{
+          background: isLight
+            ? "linear-gradient(135deg, oklch(0.93 0.02 155 / 0.8), oklch(0.92 0.02 195 / 0.9))"
+            : "linear-gradient(135deg, oklch(0.1 0.04 155 / 0.5), oklch(0.08 0.03 195 / 0.8))",
+          border: isLight
+            ? "1px solid oklch(0.72 0.22 155 / 0.25)"
+            : "1px solid oklch(0.72 0.22 155 / 0.3)",
+          boxShadow: "0 0 24px oklch(0.72 0.22 155 / 0.1)",
+        }}
+        data-ocid="contact.section"
+      >
+        {/* Section heading */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xl">✉️</span>
+          <h2 className="font-display text-sm font-black tracking-widest uppercase text-black dark:text-orange-600">
+            Contact Us
+          </h2>
+        </div>
+
+        {/* Email */}
+        <div
+          className="rounded-xl px-4 py-3 mb-5 flex items-center gap-3"
+          style={{
+            background: isLight
+              ? "oklch(0.88 0.01 265 / 0.8)"
+              : "oklch(0.08 0.02 265 / 0.6)",
+            border: "1px solid oklch(0.72 0.22 155 / 0.2)",
+          }}
+        >
+          <span className="text-base flex-shrink-0">📧</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-muted-foreground text-xs mb-0.5">
+              Email us at
+            </div>
+            <a
+              href="mailto:Lakshagarwalsaturday1223@gmail.com"
+              className="font-display font-bold text-sm transition-all hover:opacity-80"
+              style={{ color: "oklch(0.78 0.2 195)" }}
+              data-ocid="contact.link"
+            >
+              Lakshagarwalsaturday1223@gmail.com
+            </a>
+          </div>
+        </div>
+
+        {/* Feedback form */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm">📝</span>
+            <div
+              className="font-display text-xs font-bold tracking-widest"
+              style={{ color: "oklch(0.72 0.22 155)" }}
+            >
+              FEEDBACK FORM
+            </div>
+          </div>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ border: "1px solid oklch(0.72 0.22 155 / 0.25)" }}
+          >
+            <iframe
+              src="https://docs.google.com/forms/d/e/1FAIpQLSf8zt6PB5Fz2ZlhWNwRFdu_ED9dGMgbzNrli7twqx-nB0AlVA/viewform?embedded=true"
+              width="100%"
+              height="600"
+              frameBorder={0}
+              marginHeight={0}
+              marginWidth={0}
+              title="Feedback Form"
+              className="block"
+              style={{ background: "white" }}
+            >
+              Loading…
+            </iframe>
+          </div>
+        </div>
+      </motion.section>
 
       {/* Footer */}
       <footer className="px-6 pb-6 text-center">

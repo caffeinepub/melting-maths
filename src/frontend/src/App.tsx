@@ -8,6 +8,7 @@ import { FloatingMath } from "./components/FloatingMath";
 import { GameIntro } from "./components/GameIntro";
 import { GradeBackground } from "./components/GradeBackground";
 import { GradePromotion } from "./components/GradePromotion";
+import { NavBar } from "./components/NavBar";
 import {
   useCreateOrUpdateProfile,
   useHeartbeat,
@@ -15,6 +16,7 @@ import {
   useRecordGameSession,
   useSubmitLeaderboardEntry,
 } from "./hooks/useQueries";
+import { AboutScreen } from "./screens/AboutScreen";
 import { AdminRegistryScreen } from "./screens/AdminRegistryScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { BossRushScreen } from "./screens/BossRushScreen";
@@ -25,10 +27,12 @@ import { GameSelectScreen } from "./screens/GameSelectScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
+import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PublicAnalyticsScreen } from "./screens/PublicAnalyticsScreen";
 import { ShinchenScreen } from "./screens/ShinchenScreen";
 import { TeacherDashboard } from "./screens/TeacherDashboard";
+import { TermsScreen } from "./screens/TermsScreen";
 import { TournamentScreen } from "./screens/TournamentScreen";
 
 export type Screen =
@@ -46,7 +50,10 @@ export type Screen =
   | "tournament"
   | "daily-dungeon"
   | "boss-rush"
-  | "challenge";
+  | "challenge"
+  | "about"
+  | "privacy"
+  | "terms";
 
 const STORAGE_KEY = "meltingmaths_profile";
 
@@ -545,7 +552,18 @@ function AppContent() {
             onBack={() => setScreen("home")}
           />
         )}
+        {screen === "about" && <AboutScreen onBack={() => setScreen("home")} />}
+        {screen === "privacy" && (
+          <PrivacyScreen onBack={() => setScreen("home")} />
+        )}
+        {screen === "terms" && <TermsScreen onBack={() => setScreen("home")} />}
       </div>
+
+      {/* Fixed NavBar - shown on all screens except onboarding and game */}
+      {screen !== "onboarding" &&
+        screen !== "game" &&
+        !showCutscene &&
+        !isLoading && <NavBar currentScreen={screen} onNavigate={navigate} />}
 
       {/* Game Intro Cinematic */}
       <AnimatePresence>
